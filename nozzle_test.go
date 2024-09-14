@@ -17,9 +17,9 @@ type actor struct {
 	fail    int
 }
 
-func newActor(limit rate.Limit) actor {
+func newActor(limit int) actor {
 	return actor{
-		limiter: rate.NewLimiter(limit, 1),
+		limiter: rate.NewLimiter(rate.Limit(limit), limit),
 	}
 }
 
@@ -38,7 +38,6 @@ func (a *actor) do() error {
 func TestNozzle(t *testing.T) {
 	n := nozzle.New(nozzle.Options{
 		Interval:              time.Second,
-		Step:                  5,
 		AllowedFailurePercent: 50,
 	})
 
@@ -64,78 +63,58 @@ func TestNozzle(t *testing.T) {
 	// Then go back to 20% when it determines that opens the error rate.
 
 	seconds := []struct {
-		second      int
-		flowRate    int
-		successRate int
-		calls       int
+		flowRate            int
+		previousSuccessRate int
+		calls               int
 	}{
 		{
-			second:      0,
-			flowRate:    100,
-			successRate: 100,
+			flowRate:            100,
+			previousSuccessRate: 100,
 		},
 		{
-			second:      1,
-			flowRate:    90,
-			successRate: 10,
+			flowRate:            50,
+			previousSuccessRate: 10,
 		},
 		{
-			second:      2,
-			flowRate:    80,
-			successRate: 11,
+			flowRate:            25,
+			previousSuccessRate: 20,
 		},
 		{
-			second:      3,
-			flowRate:    70,
-			successRate: 12,
+			flowRate:            12,
+			previousSuccessRate: 40,
 		},
 		{
-			second:      4,
-			flowRate:    60,
-			successRate: 14,
+			flowRate:            18,
+			previousSuccessRate: 83,
 		},
 		{
-			second:      5,
-			flowRate:    50,
-			successRate: 17,
+			flowRate:            19,
+			previousSuccessRate: 55,
 		},
 		{
-			second:      6,
-			flowRate:    40,
-			successRate: 20,
+			flowRate:            20,
+			previousSuccessRate: 53,
 		},
 		{
-			second:      7,
-			flowRate:    30,
-			successRate: 25,
+			flowRate:            21,
+			previousSuccessRate: 50,
 		},
 		{
-			second:      8,
-			flowRate:    20,
-			successRate: 33,
-		},
-		{
-			second:      9,
-			flowRate:    30,
-			successRate: 50,
-		},
-		{
-			second:      10,
-			flowRate:    20,
-			successRate: 33,
+			flowRate:            20,
+			previousSuccessRate: 48,
 		},
 	}
 
-	a := newActor(rate.Limit(100))
+	a := newActor(100)
 
-	for _, second := range seconds {
-		t.Run(fmt.Sprintf("Second %d", second.second), func(t *testing.T) {
+	for i, second := range seconds {
+		t.Run(fmt.Sprintf("Second %d", i), func(t *testing.T) {
 			if fr := n.FlowRate(); fr != second.flowRate {
 				t.Errorf("Expected FlowRate=%d but got %d", second.flowRate, fr)
 			}
 
-			if sr := n.SuccessRate(); sr != second.successRate {
-				t.Errorf("Expected SuccessRate=%d but got %d", second.successRate, sr)
+			if sr := n.SuccessRate(); sr != second.previousSuccessRate {
+				t.Errorf("Expected SuccessRate=%d but got %d", second.previousSuccessRate, sr)
 			}
 
 			var calls int

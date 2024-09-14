@@ -15,4 +15,4 @@ test: lint
 
 .PHONY: test-watch
 test-watch:
-	@reflex --decoration=none -s -- sh -c "$(MAKE) test";
+	@reflex --decoration=none -s -- sh -c "clear && $(MAKE) test";
