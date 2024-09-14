@@ -5,16 +5,22 @@ import (
 	"time"
 )
 
-type Nozzle struct {
+type nozzle struct {
 	flowRate  int
 	successes int64
 	failures  int64
 	allowed   int64
 	blocked   int64
 	start     time.Time
-	options   Options
+}
 
-	mut sync.RWMutex
+type Nozzle struct {
+	previous nozzle
+	current  nozzle
+	options  Options
+
+	mut    sync.RWMutex
+	ticker chan struct{}
 }
 
 type Options struct {
@@ -24,9 +30,12 @@ type Options struct {
 
 func New(options Options) *Nozzle {
 	n := Nozzle{
-		options:  options,
-		flowRate: 100,
-		start:    time.Now(),
+		current: nozzle{
+			flowRate: 100,
+			start:    time.Now(),
+		},
+		options: options,
+		ticker:  make(chan struct{}),
 	}
 
 	go func() {
@@ -44,17 +53,17 @@ func (n *Nozzle) Do(fn func(func(), func())) {
 
 	var allowRate int
 
-	if n.allowed != 0 {
-		allowRate = int((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+	if n.current.allowed != 0 {
+		allowRate = int((float64(n.current.allowed) / float64(n.current.allowed+n.current.blocked)) * 100)
 	}
 
-	allow := allowRate <= n.flowRate
+	allow := allowRate < n.current.flowRate
 
 	if allow {
-		n.allowed++
+		n.current.allowed++
 		fn(n.success, n.failure)
 	} else {
-		n.blocked++
+		n.current.blocked++
 	}
 }
 
@@ -62,7 +71,7 @@ func (n *Nozzle) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
-	if n.start.Add(n.options.Interval).After(time.Now()) {
+	if n.current.start.Add(n.options.Interval).After(time.Now()) {
 		return
 	}
 
@@ -73,58 +82,74 @@ func (n *Nozzle) calculate() {
 	}
 
 	n.reset()
+
+	n.ticker <- struct{}{}
 }
 
 func (n *Nozzle) close() {
-	if n.flowRate == 0 {
+	if n.current.flowRate == 0 {
 		return
 	}
 
-	n.flowRate = n.flowRate / 2
+	n.current.flowRate = n.current.flowRate / 2
 }
 
 func (n *Nozzle) open() {
-	if n.flowRate == 100 {
+	if n.current.flowRate == 100 {
 		return
 	}
+
+	n.current.flowRate += (100 - n.current.flowRate) / 2
 }
 
 func (n *Nozzle) reset() {
-	n.successes = 0
-	n.failures = 0
-	n.allowed = 0
-	n.blocked = 0
-	n.start = time.Now()
+	n.previous = n.current
+	n.current = nozzle{
+		start:    time.Now(),
+		flowRate: n.previous.flowRate,
+	}
 }
 
 func (n *Nozzle) success() {
-	n.successes++
+	n.current.successes++
 }
 
 func (n *Nozzle) failure() {
-	n.failures++
+	n.current.failures++
 }
 
 func (n *Nozzle) FlowRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
-	return n.flowRate
+	return n.current.flowRate
 }
 
 func (n *Nozzle) failureRate() int {
-	if n.failures == 0 && n.successes == 0 {
+	if n.current.failures == 0 && n.current.successes == 0 {
 		return 0
 	}
 
 	// Ex: 500 failures, 500 successes
 	// (500 / (500 + 500)) * 100 = 50
-	return int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
+	return int((float64(n.current.failures) / float64(n.current.failures+n.current.successes)) * 100)
 }
 
 func (n *Nozzle) SuccessRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
-	return 100 - n.failureRate()
+	if n.previous.failures == 0 && n.previous.successes == 0 {
+		return 100
+	}
+
+	// Ex: 500 failures, 500 successes
+	// (500 / (500 + 500)) * 100 = 50
+	failureRate := int((float64(n.previous.failures) / float64(n.previous.failures+n.previous.successes)) * 100)
+
+	return 100 - failureRate
+}
+
+func (n *Nozzle) Wait() {
+	<-n.ticker
 }

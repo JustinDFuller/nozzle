@@ -1,150 +1,48 @@
-package nozzle_test
+package nozzle
 
 import (
-	"errors"
 	"fmt"
 	"testing"
-	"time"
-
-	"github.com/justindfuller/nozzle"
-	"golang.org/x/time/rate"
 )
 
-type actor struct {
-	limiter *rate.Limiter
-	count   int
-	success int
-	fail    int
-}
-
-func newActor(limit int) actor {
-	return actor{
-		limiter: rate.NewLimiter(rate.Limit(limit), limit),
-	}
-}
-
-func (a *actor) do() error {
-	if a.limiter.Allow() {
-		a.count++
-		a.success++
-		return nil
-	}
-
-	a.count++
-	a.fail++
-	return errors.New("not allowed")
-}
-
-func TestNozzle(t *testing.T) {
-	n := nozzle.New(nozzle.Options{
-		Interval:              time.Second,
-		AllowedFailurePercent: 50,
-	})
-
-	if fr := n.FlowRate(); fr != 100 {
-		t.Fatalf("Expected FlowRate=100 but got %d", fr)
-	}
-
-	if sr := n.SuccessRate(); sr != 100 {
-		t.Fatalf("Expected SuccessRate=100 but got %d", sr)
-	}
-
-	// FIRST TEST:
-	// set up an actor that allows 100 RPS.
-	// send it 1000 RPS.
-	// nozzle allows a 50% error rate.
-	// nozzle has an interval of 1s.
-	// nozzle has a step of 10.
-	//
-	// EXPECTATIONS:
-	// We should get down to a 20% flow rate.
-	// It should get there after 8 seconds.
-	// It should then continue to try to go up to 30%
-	// Then go back to 20% when it determines that opens the error rate.
-
-	seconds := []struct {
-		flowRate            int
-		previousSuccessRate int
-		calls               int
+func TestSuccessRate(t *testing.T) {
+	tests := []struct {
+		expected  int
+		failures  int
+		successes int
 	}{
 		{
-			flowRate:            100,
-			previousSuccessRate: 100,
+			expected:  100,
+			failures:  0,
+			successes: 0,
 		},
 		{
-			flowRate:            50,
-			previousSuccessRate: 10,
+			expected:  100,
+			failures:  0,
+			successes: 100,
 		},
 		{
-			flowRate:            25,
-			previousSuccessRate: 20,
+			expected:  0,
+			failures:  100,
+			successes: 0,
 		},
 		{
-			flowRate:            12,
-			previousSuccessRate: 40,
-		},
-		{
-			flowRate:            18,
-			previousSuccessRate: 83,
-		},
-		{
-			flowRate:            19,
-			previousSuccessRate: 55,
-		},
-		{
-			flowRate:            20,
-			previousSuccessRate: 53,
-		},
-		{
-			flowRate:            21,
-			previousSuccessRate: 50,
-		},
-		{
-			flowRate:            20,
-			previousSuccessRate: 48,
+			expected:  50,
+			failures:  50,
+			successes: 50,
 		},
 	}
 
-	a := newActor(100)
+	n := Nozzle{}
 
-	for i, second := range seconds {
-		t.Run(fmt.Sprintf("Second %d", i), func(t *testing.T) {
-			if fr := n.FlowRate(); fr != second.flowRate {
-				t.Errorf("Expected FlowRate=%d but got %d", second.flowRate, fr)
-			}
+	for i, test := range tests {
+		t.Run(fmt.Sprintf("test=%d", i), func(t *testing.T) {
+			n.current.failures = int64(test.failures)
+			n.current.successes = int64(test.successes)
 
-			if sr := n.SuccessRate(); sr != second.previousSuccessRate {
-				t.Errorf("Expected SuccessRate=%d but got %d", second.previousSuccessRate, sr)
-			}
-
-			var calls int
-
-			for i := 0; i < 1000; i++ {
-				n.Do(func(success, failure func()) {
-					calls++
-
-					if success == nil {
-						t.Errorf("Got nil success function")
-					}
-
-					if failure == nil {
-						t.Errorf("Got nil failure function")
-					}
-
-					err := a.do()
-					if err == nil {
-						success()
-					} else {
-						failure()
-					}
-				})
-			}
-
-			if expected := int(1000 * (float64(second.flowRate) / 100)); calls != expected {
-				t.Errorf("Expected %d calls but got %d", expected, calls)
+			if sr := n.SuccessRate(); sr != test.expected {
+				t.Errorf("Expected SuccessRate=%d Got=%d", test.expected, sr)
 			}
 		})
-
-		time.Sleep(time.Second)
 	}
 }

@@ -9,8 +9,7 @@ lint:
 .PHONY: test
 test: lint
 	@echo "Beginning tests.";
-	@echo "Warning: This will take > 10 seconds to run."
-	@go test -race -vet=off ./...;
+	@go test -v -race -vet=off ./...;
 	@echo "Go tests passed.";
 
 .PHONY: test-watch
