@@ -90,7 +90,7 @@ func (n *Nozzle) close() {
 	}
 
 	n.high = n.flowRate
-	n.flowRate = n.low + (n.high-n.low)/2
+	n.flowRate = (n.low + (n.high-n.low)/2) - 1
 }
 
 func (n *Nozzle) open() {
@@ -99,7 +99,7 @@ func (n *Nozzle) open() {
 	}
 
 	n.low = n.flowRate
-	n.flowRate = n.low + (n.high-n.low)/2
+	n.flowRate = (n.low + (n.high-n.low)/2) + 1
 }
 
 func (n *Nozzle) reset() {

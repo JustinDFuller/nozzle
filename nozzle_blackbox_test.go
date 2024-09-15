@@ -74,20 +74,32 @@ func TestNozzleBlackbox(t *testing.T) {
 			successRate: 11,
 		},
 		{
-			flowRate:    50,
-			successRate: 20,
+			flowRate:    49,
+			successRate: 21,
 		},
 		{
-			flowRate:    25,
-			successRate: 40,
+			flowRate:    23,
+			successRate: 44,
 		},
 		{
-			flowRate:    12,
-			successRate: 84,
+			flowRate:    10,
+			successRate: 100,
+		},
+		{
+			flowRate:    17,
+			successRate: 59,
+		},
+		{
+			flowRate:    21,
+			successRate: 48,
 		},
 		{
 			flowRate:    18,
 			successRate: 56,
+		},
+		{
+			flowRate:    20,
+			successRate: 50,
 		},
 		{
 			flowRate:    21,
@@ -98,16 +110,12 @@ func TestNozzleBlackbox(t *testing.T) {
 			successRate: 53,
 		},
 		{
-			flowRate:    20,
-			successRate: 50,
-		},
-		{
 			flowRate:    21,
 			successRate: 48,
 		},
 		{
-			flowRate:    20,
-			successRate: 50,
+			flowRate:    19,
+			successRate: 53,
 		},
 	}
 
