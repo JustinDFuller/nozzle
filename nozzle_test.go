@@ -37,8 +37,8 @@ func TestSuccessRate(t *testing.T) {
 
 	for i, test := range tests {
 		t.Run(fmt.Sprintf("test=%d", i), func(t *testing.T) {
-			n.current.failures = int64(test.failures)
-			n.current.successes = int64(test.successes)
+			n.failures = int64(test.failures)
+			n.successes = int64(test.successes)
 
 			if sr := n.SuccessRate(); sr != test.expected {
 				t.Errorf("Expected SuccessRate=%d Got=%d", test.expected, sr)

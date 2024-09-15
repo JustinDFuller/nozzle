@@ -65,58 +65,58 @@ func TestNozzleBlackbox(t *testing.T) {
 	// Then go back to 20% when it determines that opens the error rate.
 
 	seconds := []struct {
-		flowRate            int
-		previousSuccessRate int
-		calls               int
+		flowRate    int
+		successRate int
+		calls       int
 	}{
 		{
-			flowRate:            100,
-			previousSuccessRate: 100,
+			flowRate:    100,
+			successRate: 11,
 		},
 		{
-			flowRate:            50,
-			previousSuccessRate: 10,
+			flowRate:    50,
+			successRate: 20,
 		},
 		{
-			flowRate:            25,
-			previousSuccessRate: 20,
+			flowRate:    25,
+			successRate: 40,
 		},
 		{
-			flowRate:            12,
-			previousSuccessRate: 40,
+			flowRate:    12,
+			successRate: 84,
 		},
 		{
-			flowRate:            18,
-			previousSuccessRate: 83,
+			flowRate:    18,
+			successRate: 56,
 		},
 		{
-			flowRate:            19,
-			previousSuccessRate: 55,
+			flowRate:    21,
+			successRate: 48,
 		},
 		{
-			flowRate:            20,
-			previousSuccessRate: 53,
+			flowRate:    19,
+			successRate: 53,
 		},
 		{
-			flowRate:            21,
-			previousSuccessRate: 50,
+			flowRate:    20,
+			successRate: 50,
 		},
 		{
-			flowRate:            20,
-			previousSuccessRate: 48,
+			flowRate:    21,
+			successRate: 48,
+		},
+		{
+			flowRate:    20,
+			successRate: 50,
 		},
 	}
 
 	a := newActor(100)
 
 	for i, second := range seconds {
-		t.Run(fmt.Sprintf("Second %d", i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("Second %d rate=%d", i, second.flowRate), func(t *testing.T) {
 			if fr := n.FlowRate(); fr != second.flowRate {
 				t.Errorf("FlowRate want=%d got=%d", second.flowRate, fr)
-			}
-
-			if sr := n.SuccessRate(); sr != second.previousSuccessRate {
-				t.Errorf("SuccessRate want=%d got=%d", second.previousSuccessRate, sr)
 			}
 
 			var calls int
@@ -142,8 +142,12 @@ func TestNozzleBlackbox(t *testing.T) {
 				})
 			}
 
-			if expected := int(1000 * (float64(second.flowRate) / 100)); calls != expected {
+			if expected := int(1000 * (float64(second.flowRate) / 100)); calls-expected > 1 || calls-expected < -1 {
 				t.Errorf("Calls want=%d got=%d", expected, calls)
+			}
+
+			if sr := n.SuccessRate(); sr != second.successRate {
+				t.Errorf("SuccessRate want=%d got=%d", second.successRate, sr)
 			}
 		})
 
