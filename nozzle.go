@@ -6,6 +6,8 @@ import (
 )
 
 type Nozzle struct {
+	Options    Options
+
 	multiplier int
 	flowRate   int
 	successes  int64
@@ -14,7 +16,6 @@ type Nozzle struct {
 	blocked    int64
 	start      time.Time
 	mut        sync.RWMutex
-	options    Options
 	state      State
 	ticker     chan struct{}
 }
@@ -85,7 +86,7 @@ const (
 func New(options Options) *Nozzle {
 	n := Nozzle{
 		flowRate: 100,
-		options:  options,
+		Options:  options,
 		state:    Opening,
 	}
 
@@ -98,6 +99,29 @@ func New(options Options) *Nozzle {
 	return &n
 }
 
+// Do executes a callback function while respecting the Nozzle's state.
+// It monitors how many calls have been allowed and compares it with the flowRate to determine if this particular call will be allowed.
+//
+// The callback function receives two function arguments: success and failure.
+// You must call success if your callback function succeeded.
+// You must call failure if your callback function failed.
+//
+// These functions will always be non-nil.
+//
+// Example:
+//
+//	var n nozzle.Nozzle
+//
+//	n.Do(func(success, failure func()) {
+//		err := someFuncThatCanFail()
+//		if err == nil {
+//			success()
+//		} else {
+//			failure()
+//		}
+//	})
+//
+// If you do not call success/failure, Nozzle will have no effect.
 func (n *Nozzle) Do(fn func(func(), func())) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
@@ -122,11 +146,11 @@ func (n *Nozzle) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
-	if time.Since(n.start) < n.options.Interval {
+	if time.Since(n.start) < n.Options.Interval {
 		return
 	}
 
-	if n.failureRate() > n.options.AllowedFailurePercent {
+	if n.failureRate() > n.Options.AllowedFailurePercent {
 		n.close()
 		n.state = Closing
 	} else {
@@ -185,6 +209,11 @@ func (n *Nozzle) failure() {
 	n.failures++
 }
 
+// FlowRate reports the current flow rate.
+// The flow rate determines how many calls will be allowed.
+// Ex: A flow rate of 100 will allow all calls.
+//     A flow rate of 0 will allow no calls.
+//     A flow rate of 50 will allow 50% of calls.
 func (n *Nozzle) FlowRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -202,6 +231,9 @@ func (n *Nozzle) failureRate() int {
 	return int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
 }
 
+// SuccessRate reports the success rate of nozzle calls.
+// If 100% of nozzle.Do calls are reporting success, the success rate will be 100.
+// If 0% of calls are reporting success, success rate will be 0.
 func (n *Nozzle) SuccessRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -217,6 +249,9 @@ func (n *Nozzle) SuccessRate() int {
 	return 100 - n.failureRate()
 }
 
+// FailureRate reports the failure rate of nozzle calls.
+// If 100% of nozzle.Do calls are reporting failure, the failure rate will be 100.
+// If 0% of calls are reporting failure, failure rate will be 0.
 func (n *Nozzle) FailureRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -232,6 +267,8 @@ func (n *Nozzle) FailureRate() int {
 	return n.failureRate()
 }
 
+// State reports the current state of the nozzle.
+// Except for an un-initialized Nozzle, the state is always opening or closing.
 func (n *Nozzle) State() State {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -239,6 +276,8 @@ func (n *Nozzle) State() State {
 	return n.state
 }
 
+// Wait will block until the Nozzle processes the next tick.
+// You should most likely not use this in production, but it is useful for testing.
 func (n *Nozzle) Wait() {
 	n.mut.Lock()
 
