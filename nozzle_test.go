@@ -46,7 +46,7 @@ func TestSuccessRate(t *testing.T) {
 		},
 	}
 
-	n := Nozzle{
+	n := nozzle{
 		flowRate: 100,
 	}
 
