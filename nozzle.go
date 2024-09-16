@@ -6,7 +6,7 @@ import (
 )
 
 type Nozzle struct {
-	Options    Options
+	Options Options
 
 	multiplier int
 	flowRate   int
@@ -212,8 +212,9 @@ func (n *Nozzle) failure() {
 // FlowRate reports the current flow rate.
 // The flow rate determines how many calls will be allowed.
 // Ex: A flow rate of 100 will allow all calls.
-//     A flow rate of 0 will allow no calls.
-//     A flow rate of 50 will allow 50% of calls.
+//
+//	A flow rate of 0 will allow no calls.
+//	A flow rate of 50 will allow 50% of calls.
 func (n *Nozzle) FlowRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
