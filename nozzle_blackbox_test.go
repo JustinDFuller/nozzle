@@ -73,215 +73,257 @@ func TestNozzleBlackbox(t *testing.T) {
 		successRate int
 		failureRate int
 		calls       int
+		state       nozzle.State
 		actor       *actor
 	}{
 		{
 			flowRate:    100,
 			successRate: 11,
 			failureRate: 89,
+			state:       nozzle.Closing,
 			actor:       &a,
 		},
 		{
 			flowRate:    99,
 			successRate: 11,
 			failureRate: 89,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    97,
 			successRate: 11,
 			failureRate: 89,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    93,
 			successRate: 11,
 			failureRate: 89,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    85,
 			successRate: 12,
 			failureRate: 88,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    69,
 			successRate: 15,
 			failureRate: 85,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    37,
 			successRate: 28,
 			failureRate: 72,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    0,
 			successRate: 0,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    1,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    3,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    7,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    15,
 			successRate: 67,
 			failureRate: 33,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    31,
 			successRate: 33,
 			failureRate: 67,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    30,
 			successRate: 34,
 			failureRate: 66,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    28,
 			successRate: 36,
 			failureRate: 64,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    24,
 			successRate: 42,
 			failureRate: 58,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    16,
 			successRate: 63,
 			failureRate: 37,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    17,
 			successRate: 59,
 			failureRate: 41,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    19,
 			successRate: 53,
 			failureRate: 47,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    23,
 			successRate: 44,
 			failureRate: 56,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    22,
 			successRate: 46,
 			failureRate: 54,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    20,
 			successRate: 50,
 			failureRate: 50,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    21,
 			successRate: 48,
 			failureRate: 52,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    20,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 			actor:       &b,
 		},
 		{
 			flowRate:    21,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    23,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    27,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    35,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    51,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    83,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    100,
 			successRate: 100,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    100,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 			actor:       &c,
 		},
 		{
 			flowRate:    99,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    97,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    93,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    85,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    69,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    37,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    0,
 			successRate: 0,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 		{
 			flowRate:    1,
 			successRate: 0,
 			failureRate: 100,
+			state:       nozzle.Closing,
 		},
 		{
 			flowRate:    0,
 			successRate: 0,
 			failureRate: 0,
+			state:       nozzle.Opening,
 		},
 	}
 
@@ -333,8 +375,13 @@ func TestNozzleBlackbox(t *testing.T) {
 			if fr := n.FailureRate(); fr != second.failureRate {
 				t.Errorf("failureRate want=%d got=%d", second.failureRate, fr)
 			}
+
+			n.Wait()
+
+			if n.State() != second.state {
+				t.Errorf("Expected state=%s got=%s", second.state, n.State())
+			}
 		})
 
-		n.Wait()
 	}
 }

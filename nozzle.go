@@ -16,6 +16,7 @@ type Nozzle struct {
 	start     time.Time
 	mut       sync.RWMutex
 	options   Options
+	state     State
 	ticker    chan struct{}
 }
 
@@ -24,12 +25,20 @@ type Options struct {
 	AllowedFailurePercent int
 }
 
+type State string
+
+const (
+	Opening State = "opening"
+	Closing State = "closing"
+)
+
 func New(options Options) *Nozzle {
 	n := Nozzle{
 		flowRate: 100,
 		start:    time.Now(),
 		options:  options,
 		ticker:   make(chan struct{}),
+		state:    Opening,
 	}
 
 	go func() {
@@ -71,8 +80,10 @@ func (n *Nozzle) calculate() {
 
 	if n.failureRate() > n.options.AllowedFailurePercent {
 		n.close()
+		n.state = Closing
 	} else {
 		n.open()
+		n.state = Opening
 	}
 
 	n.reset()
@@ -167,6 +178,13 @@ func (n *Nozzle) FailureRate() int {
 	}
 
 	return n.failureRate()
+}
+
+func (n *Nozzle) State() State {
+	n.mut.RLock()
+	defer n.mut.RUnlock()
+
+	return n.state
 }
 
 func (n *Nozzle) Wait() {
