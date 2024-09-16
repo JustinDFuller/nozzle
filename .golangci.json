@@ -1,0 +1,48 @@
+{
+    "run": {
+        "go": "1.23"
+    },
+    "output": {
+        "sort-results": true,
+        "sort-order": "file"
+    },
+    "linters": {
+        "enable-all": true,
+        "disable": [
+            "gomnd",
+            "execinquery",
+            "lll",
+            "exhaustruct",
+            "funlen",
+            "gocognit",
+            "cyclop",
+            "maintidx"
+        ]
+    },
+    "issues": {
+        "fix": false
+    },
+    "linters-settings": {
+        "mnd": {
+            "ignored-numbers": [
+                "0",
+                "100",
+                "2"
+            ]
+        },
+        "varnamelen": {
+            "max-distance": 20
+        },
+        "depguard": {
+            "rules": {
+                "main": {
+                    "allow": [
+                        "$gostd",
+                        "github.com/justindfuller/nozzle",
+                        "golang.org/x/time/rate"
+                    ]
+                }
+            }
+        }
+    }
+}

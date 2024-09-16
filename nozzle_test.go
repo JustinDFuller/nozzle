@@ -1,4 +1,4 @@
-package nozzle
+package nozzle //nolint:testpackage // meant to NOT be a blackbox test
 
 import (
 	"fmt"
@@ -46,7 +46,7 @@ func TestSuccessRate(t *testing.T) {
 		},
 	}
 
-	n := nozzle{
+	n := Nozzle{
 		flowRate: 100,
 	}
 

@@ -27,27 +27,29 @@ func (a *actor) do() error {
 	if a.limiter.Allow() {
 		a.count++
 		a.success++
+
 		return nil
 	}
 
 	a.count++
 	a.fail++
-	return errors.New("not allowed")
+
+	return errors.New("not allowed") //nolint:err113 // Just a testing error
 }
 
-func TestNozzleBlackbox(t *testing.T) {
+func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
 	t.Parallel()
 
-	n := nozzle.New(nozzle.Options{
+	noz := nozzle.New(nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
 
-	if fr := n.FlowRate(); fr != 100 {
+	if fr := noz.FlowRate(); fr != 100 {
 		t.Fatalf("Expected FlowRate=100 but got %d", fr)
 	}
 
-	if sr := n.SuccessRate(); sr != 100 {
+	if sr := noz.SuccessRate(); sr != 100 {
 		t.Fatalf("Expected SuccessRate=100 but got %d", sr)
 	}
 
@@ -64,9 +66,9 @@ func TestNozzleBlackbox(t *testing.T) {
 	// It should then continue to try to go up to 30%
 	// Then go back to 20% when it determines that opens the error rate.
 
-	a := newActor(100)
-	b := newActor(1000)
-	c := newActor(0)
+	tenPercent := newActor(100)
+	alwaysSucceed := newActor(1000)
+	alwaysFail := newActor(0)
 
 	seconds := []struct {
 		flowRate    int
@@ -81,7 +83,7 @@ func TestNozzleBlackbox(t *testing.T) {
 			successRate: 11,
 			failureRate: 89,
 			state:       nozzle.Closing,
-			actor:       &a,
+			actor:       &tenPercent,
 		},
 		{
 			flowRate:    99,
@@ -220,7 +222,7 @@ func TestNozzleBlackbox(t *testing.T) {
 			successRate: 100,
 			failureRate: 0,
 			state:       nozzle.Opening,
-			actor:       &b,
+			actor:       &alwaysSucceed,
 		},
 		{
 			flowRate:    21,
@@ -269,7 +271,7 @@ func TestNozzleBlackbox(t *testing.T) {
 			successRate: 0,
 			failureRate: 100,
 			state:       nozzle.Closing,
-			actor:       &c,
+			actor:       &alwaysFail,
 		},
 		{
 			flowRate:    99,
@@ -331,20 +333,20 @@ func TestNozzleBlackbox(t *testing.T) {
 
 	var act *actor
 
-	for i, second := range seconds {
+	for i, second := range seconds { //nolint:paralleltest // meant to NOT be parallel
 		if second.actor != nil {
 			act = second.actor
 		}
 
 		t.Run(fmt.Sprintf("Second %d rate=%d", i, second.flowRate), func(t *testing.T) {
-			if fr := n.FlowRate(); fr != second.flowRate {
+			if fr := noz.FlowRate(); fr != second.flowRate {
 				t.Errorf("FlowRate want=%d got=%d", second.flowRate, fr)
 			}
 
 			var calls int
 
-			for i := 0; i < 1000; i++ {
-				n.Do(func(success, failure func()) {
+			for range 1000 {
+				noz.Do(func(success, failure func()) {
 					calls++
 
 					if success == nil {
@@ -368,20 +370,19 @@ func TestNozzleBlackbox(t *testing.T) {
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
-			if sr := n.SuccessRate(); sr != second.successRate {
+			if sr := noz.SuccessRate(); sr != second.successRate {
 				t.Errorf("SuccessRate want=%d got=%d", second.successRate, sr)
 			}
 
-			if fr := n.FailureRate(); fr != second.failureRate {
+			if fr := noz.FailureRate(); fr != second.failureRate {
 				t.Errorf("failureRate want=%d got=%d", second.failureRate, fr)
 			}
 
-			n.Wait()
+			noz.Wait()
 
-			if n.State() != second.state {
-				t.Errorf("Expected state=%s got=%s", second.state, n.State())
+			if noz.State() != second.state {
+				t.Errorf("Expected state=%s got=%s", second.state, noz.State())
 			}
 		})
-
 	}
 }

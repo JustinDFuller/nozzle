@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type nozzle struct {
+type Nozzle struct {
 	multiplier int
 	flowRate   int
 	successes  int64
@@ -82,8 +82,8 @@ const (
 //	})
 //
 // See docs of nozzle.Options for details about each Option field.
-func New(options Options) *nozzle {
-	n := nozzle{
+func New(options Options) *Nozzle {
+	n := Nozzle{
 		flowRate: 100,
 		options:  options,
 		state:    Opening,
@@ -98,7 +98,7 @@ func New(options Options) *nozzle {
 	return &n
 }
 
-func (n *nozzle) Do(fn func(func(), func())) {
+func (n *Nozzle) Do(fn func(func(), func())) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -118,7 +118,7 @@ func (n *nozzle) Do(fn func(func(), func())) {
 	}
 }
 
-func (n *nozzle) calculate() {
+func (n *Nozzle) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -141,7 +141,7 @@ func (n *nozzle) calculate() {
 	}
 }
 
-func (n *nozzle) close() {
+func (n *Nozzle) close() {
 	if n.flowRate == 0 {
 		return
 	}
@@ -150,11 +150,12 @@ func (n *nozzle) close() {
 	if mult > -1 {
 		mult = -1
 	}
+
 	n.flowRate = clamp(n.flowRate + mult)
 	n.multiplier = mult * 2
 }
 
-func (n *nozzle) open() {
+func (n *Nozzle) open() {
 	if n.flowRate == 100 {
 		return
 	}
@@ -163,11 +164,12 @@ func (n *nozzle) open() {
 	if mult < 1 {
 		mult = 1
 	}
+
 	n.flowRate = clamp(n.flowRate + mult)
 	n.multiplier = mult * 2
 }
 
-func (n *nozzle) reset() {
+func (n *Nozzle) reset() {
 	n.start = time.Now()
 	n.successes = 0
 	n.failures = 0
@@ -175,22 +177,22 @@ func (n *nozzle) reset() {
 	n.blocked = 0
 }
 
-func (n *nozzle) success() {
+func (n *Nozzle) success() {
 	n.successes++
 }
 
-func (n *nozzle) failure() {
+func (n *Nozzle) failure() {
 	n.failures++
 }
 
-func (n *nozzle) FlowRate() int {
+func (n *Nozzle) FlowRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
 	return n.flowRate
 }
 
-func (n *nozzle) failureRate() int {
+func (n *Nozzle) failureRate() int {
 	if n.failures == 0 && n.successes == 0 {
 		return 0
 	}
@@ -200,7 +202,7 @@ func (n *nozzle) failureRate() int {
 	return int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
 }
 
-func (n *nozzle) SuccessRate() int {
+func (n *Nozzle) SuccessRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -215,7 +217,7 @@ func (n *nozzle) SuccessRate() int {
 	return 100 - n.failureRate()
 }
 
-func (n *nozzle) FailureRate() int {
+func (n *Nozzle) FailureRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -230,14 +232,14 @@ func (n *nozzle) FailureRate() int {
 	return n.failureRate()
 }
 
-func (n *nozzle) State() State {
+func (n *Nozzle) State() State {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
 	return n.state
 }
 
-func (n *nozzle) Wait() {
+func (n *Nozzle) Wait() {
 	n.mut.Lock()
 
 	if n.ticker == nil {
