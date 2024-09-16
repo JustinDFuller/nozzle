@@ -6,9 +6,7 @@ import (
 )
 
 type Nozzle struct {
-	high         int
-	previousHigh int
-	low          int
+	multiplier int
 
 	flowRate  int
 	successes int64
@@ -28,8 +26,6 @@ type Options struct {
 
 func New(options Options) *Nozzle {
 	n := Nozzle{
-		high:     100,
-		low:      0,
 		flowRate: 100,
 		start:    time.Now(),
 		options:  options,
@@ -89,8 +85,12 @@ func (n *Nozzle) close() {
 		return
 	}
 
-	n.high = n.flowRate
-	n.flowRate = (n.low + (n.high-n.low)/2) - 1
+	mult := n.multiplier
+	if mult > -1 {
+		mult = -1
+	}
+	n.flowRate = clamp(n.flowRate + mult)
+	n.multiplier = mult * 2
 }
 
 func (n *Nozzle) open() {
@@ -98,8 +98,12 @@ func (n *Nozzle) open() {
 		return
 	}
 
-	n.low = n.flowRate
-	n.flowRate = (n.low + (n.high-n.low)/2) + 1
+	mult := n.multiplier
+	if mult < 1 {
+		mult = 1
+	}
+	n.flowRate = clamp(n.flowRate + mult)
+	n.multiplier = mult * 2
 }
 
 func (n *Nozzle) reset() {
@@ -139,17 +143,44 @@ func (n *Nozzle) SuccessRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
+	if n.flowRate == 0 {
+		return 0
+	}
+
 	if n.failures == 0 && n.successes == 0 {
 		return 100
 	}
 
-	// Ex: 500 failures, 500 successes
-	// (500 / (500 + 500)) * 100 = 50
-	failureRate := int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
+	return 100 - n.failureRate()
+}
 
-	return 100 - failureRate
+func (n *Nozzle) FailureRate() int {
+	n.mut.RLock()
+	defer n.mut.RUnlock()
+
+	if n.flowRate == 0 {
+		return 0
+	}
+
+	if n.failures == 0 && n.successes == 0 {
+		return 0
+	}
+
+	return n.failureRate()
 }
 
 func (n *Nozzle) Wait() {
 	<-n.ticker
+}
+
+func clamp(i int) int {
+	if i < 0 {
+		return 0
+	}
+
+	if i > 100 {
+		return 100
+	}
+
+	return i
 }
