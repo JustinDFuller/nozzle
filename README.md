@@ -1,5 +1,7 @@
 # nozzle
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/justindfuller/nozzle.svg)](https://pkg.go.dev/github.com/justindfuller/nozzle)
+
 The Hose Nozzle Pattern
 
 ## TL;DR

@@ -85,9 +85,7 @@ const (
 func New(options Options) *nozzle {
 	n := nozzle{
 		flowRate: 100,
-		start:    time.Now(),
 		options:  options,
-		ticker:   make(chan struct{}),
 		state:    Opening,
 	}
 
@@ -138,7 +136,9 @@ func (n *nozzle) calculate() {
 
 	n.reset()
 
-	n.ticker <- struct{}{}
+	if n.ticker != nil {
+		n.ticker <- struct{}{}
+	}
 }
 
 func (n *nozzle) close() {
@@ -238,6 +238,14 @@ func (n *nozzle) State() State {
 }
 
 func (n *nozzle) Wait() {
+	n.mut.Lock()
+
+	if n.ticker == nil {
+		n.ticker = make(chan struct{})
+	}
+
+	n.mut.Unlock()
+
 	<-n.ticker
 }
 
