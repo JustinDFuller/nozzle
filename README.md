@@ -71,3 +71,23 @@ func main() {}
 
 The Nozzle will attempt to execute as many requests as possible.
 
+## Performance
+
+The performance is excellent. 0 bytes per operation, 0 allocations per operation. It works with concurrent goroutines without any race conditions.
+
+```go
+@JustinDFuller ➜ /workspaces/nozzle (main) $ make bench
+goos: linux
+goarch: amd64
+pkg: github.com/justindfuller/nozzle
+cpu: AMD EPYC 7763 64-Core Processor                
+BenchmarkNozzle_DoBool_Open-2             908032            1316 ns/op               0 B/op       0 allocs/op
+BenchmarkNozzle_DoBool_Closed-2          2301523             445.2 ns/op             0 B/op       0 allocs/op
+BenchmarkNozzle_DoBool_Half-2             981314            1313 ns/op               0 B/op       0 allocs/op
+BenchmarkNozzle_DoError_Open-2            892647            1446 ns/op               0 B/op       0 allocs/op
+BenchmarkNozzle_DoError_Closed-2         2554688             452.1 ns/op             0 B/op       0 allocs/op
+BenchmarkNozzle_DoError_Half-2            964617            1311 ns/op               0 B/op       0 allocs/op
+BenchmarkNozzle_DoBool_Control-2         1292871             960.8 ns/op             0 B/op       0 allocs/op
+PASS
+ok      github.com/justindfuller/nozzle 11.410s
+```
