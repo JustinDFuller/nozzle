@@ -2,6 +2,7 @@
 
 [![Go Reference](https://pkg.go.dev/badge/github.com/justindfuller/nozzle.svg)](https://pkg.go.dev/github.com/justindfuller/nozzle)
 [![Build Status](https://github.com/JustinDFuller/nozzle/actions/workflows/build.yml/badge.svg)](https://github.com/JustinDFuller/nozzle/actions/workflows/build.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/justindfuller/nozzle)](https://goreportcard.com/report/github.com/justindfuller/nozzle)
 
 The Hose Nozzle Pattern
 
