@@ -71,6 +71,33 @@ func main() {}
 
 The Nozzle will attempt to execute as many requests as possible.
 
+If you are not working with errors, you can use a Boolean Nozzle.
+
+```go
+package main
+
+import (
+    "net/http"
+
+    "github.com/justindfuller/nozzle"
+)
+
+func main() {}
+    n := nozzle.New(nozzle.Options{
+        Interval:              time.Second,
+        AllowedFailurePercent: 50,
+    })
+
+    for i := 0; i < 1000; i++ {
+        n.DoBool() bool {
+            res, _ := http.Get("https://google.com")
+            
+            return res.Body == nil
+        })
+    }
+}
+```
+
 ## Performance
 
 The performance is excellent. 0 bytes per operation, 0 allocations per operation. It works with concurrent goroutines without any race conditions.

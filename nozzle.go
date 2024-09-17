@@ -18,39 +18,39 @@ type Nozzle struct {
 	// It determines how quickly the Nozzle opens or closes.
 	// Example: If decreaseBy is -2, flowRate decreases faster than if decreaseBy is -1
 	decreaseBy int
-	
+
 	// flowRate indicates the percentage of allowed operations at any given time.
 	// Example: A flowRate of 100 means all operations are allowed, while a flowRate of 0 means none are allowed.
 	flowRate int
-	
+
 	// successes counts the number of successful operations since the last reset.
 	// Example: If 50 operations succeeded, successes will be 50.
 	successes int64
-	
+
 	// failures counts the number of failed operations since the last reset.
 	// Example: If 20 operations failed, failures will be 20.
 	failures int64
-	
+
 	// allowed counts the number of operations that were allowed in the current interval.
 	// Example: If 70 operations were allowed, allowed will be 70.
 	allowed int64
-	
+
 	// blocked counts the number of operations that were blocked in the current interval.
 	// Example: If 30 operations were blocked, blocked will be 30.
 	blocked int64
-	
+
 	// start records the time when the current interval started.
 	// Example: If the interval started at 10:00 AM, start will be the time corresponding to 10:00 AM.
 	start time.Time
-	
+
 	// mut is a read-write mutex that ensures thread-safe access to Nozzle's state.
 	// Example: It prevents concurrent read and write operations from causing inconsistencies when multiple goroutines interact with Nozzle.
 	mut sync.RWMutex
-	
+
 	// state represents whether the Nozzle is currently opening or closing.
 	// Example: If the Nozzle is adjusting to increase the flow rate, state will be Opening.
 	state State
-	
+
 	// ticker is a channel used to signal the occurrence of a new tick.
 	// Example: It allows other parts of the code to react to time-based events, such as triggering a status update.
 	ticker chan struct{}
@@ -68,7 +68,7 @@ type Options struct {
 	// The best interval depends on the needs of your application.
 	// If you are unsure, start with 1 second.
 	Interval time.Duration
-	
+
 	// AllowedFailurePercent sets the threshold for the failure rate at which the Nozzle should open or close.
 	// Example:
 	//

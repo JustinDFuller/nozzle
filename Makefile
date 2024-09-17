@@ -16,6 +16,10 @@ test: lint
 	@go test -v -race -vet=off ./...;
 	@echo "Go tests passed.";
 
+.PHONY: test-example
+test-example:
+	@go test -run=Example ./...;
+
 .PHONY: test-watch
 test-watch:
 	@reflex --decoration=none -s -- sh -c "clear && $(MAKE) test";
