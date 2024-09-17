@@ -141,6 +141,46 @@ func (n *Nozzle) DoBool(fn func() bool) {
 	}
 }
 
+// DoError executes a callback function while respecting the Nozzle's state.
+// It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
+//
+// The callback function receives no arguments and should return an error.
+// If the callback returns nil, the success method will be called. If the callback returns an error, the failure method will be called.
+//
+// Example:
+//
+//	var n nozzle.Nozzle
+//
+//	n.DoError(func() error {
+//		err := someFuncThatCanFail()
+//		return err
+//	})
+//
+// If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
+func (n *Nozzle) DoError(fn func() error) {
+	n.mut.Lock()
+	defer n.mut.Unlock()
+
+	var allowRate int
+
+	if n.allowed != 0 {
+		allowRate = int((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+	}
+
+	allow := allowRate < n.flowRate
+
+	if allow {
+		n.allowed++
+		if err := fn(); err != nil {
+			n.failure()
+		} else {
+			n.success()
+		}
+	} else {
+		n.blocked++
+	}
+}
+
 func (n *Nozzle) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()

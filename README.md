@@ -60,13 +60,10 @@ func main() {}
     })
 
     for i := 0; i < 1000; i++ {
-        n.Do(func(success, failure func()) {
+        n.DoError() error {
             _, err := http.Get("https://google.com")
-            if err == nil {
-                success()
-            } else {
-                failure()
-            }
+            
+            return err
         })
     }
 }

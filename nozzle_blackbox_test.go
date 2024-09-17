@@ -39,47 +39,20 @@ func (a *actor) do() error {
 	return ErrNotAllowed
 }
 
-func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
-	t.Parallel()
+type second struct {
+	flowRate    int
+	successRate int
+	failureRate int
+	state       nozzle.State
+	actor       *actor
+}
 
-	noz := nozzle.New(nozzle.Options{
-		Interval:              time.Second,
-		AllowedFailurePercent: 50,
-	})
-
-	if fr := noz.FlowRate(); fr != 100 {
-		t.Fatalf("Expected FlowRate=100 but got %d", fr)
-	}
-
-	if sr := noz.SuccessRate(); sr != 100 {
-		t.Fatalf("Expected SuccessRate=100 but got %d", sr)
-	}
-
-	// FIRST TEST:
-	// set up an actor that allows 100 RPS.
-	// send it 1000 RPS.
-	// nozzle allows a 50% error rate.
-	// nozzle has an interval of 1s.
-	// nozzle has a step of 10.
-	//
-	// EXPECTATIONS:
-	// We should get down to a 20% flow rate.
-	// It should get there after 8 seconds.
-	// It should then continue to try to go up to 30%
-	// Then go back to 20% when it determines that opens the error rate.
-
+func seconds() []second {
 	tenPercent := newActor(100)
 	alwaysSucceed := newActor(1000)
 	alwaysFail := newActor(0)
 
-	seconds := []struct {
-		flowRate    int
-		successRate int
-		failureRate int
-		calls       int
-		state       nozzle.State
-		actor       *actor
-	}{
+	return []second{
 		{
 			flowRate:    100,
 			successRate: 11,
@@ -330,12 +303,29 @@ func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should N
 			state:       nozzle.Opening,
 		},
 	}
+}
 
-	t.Logf("Warning: This test will take at least %d seconds to run.", len(seconds))
+func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
+	t.Parallel()
+
+	noz := nozzle.New(nozzle.Options{
+		Interval:              time.Second,
+		AllowedFailurePercent: 50,
+	})
+
+	if fr := noz.FlowRate(); fr != 100 {
+		t.Fatalf("Expected FlowRate=100 but got %d", fr)
+	}
+
+	if sr := noz.SuccessRate(); sr != 100 {
+		t.Fatalf("Expected SuccessRate=100 but got %d", sr)
+	}
+
+	t.Logf("Warning: This test will take at least %d seconds to run.", len(seconds()))
 
 	var act *actor
 
-	for i, second := range seconds { //nolint:paralleltest // meant to NOT be parallel
+	for i, second := range seconds() { //nolint:paralleltest // meant to NOT be parallel
 		if second.actor != nil {
 			act = second.actor
 		}
@@ -354,6 +344,69 @@ func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should N
 					err := act.do()
 
 					return err == nil
+				})
+			}
+
+			if expected := int(1000 * (float64(second.flowRate) / 100)); calls-expected > 1 || calls-expected < -1 {
+				t.Errorf("Calls want=%d got=%d", expected, calls)
+			}
+
+			if sr := noz.SuccessRate(); sr != second.successRate {
+				t.Errorf("SuccessRate want=%d got=%d", second.successRate, sr)
+			}
+
+			if fr := noz.FailureRate(); fr != second.failureRate {
+				t.Errorf("failureRate want=%d got=%d", second.failureRate, fr)
+			}
+
+			noz.Wait()
+
+			if noz.State() != second.state {
+				t.Errorf("Expected state=%s got=%s", second.state, noz.State())
+			}
+		})
+	}
+}
+
+func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
+	t.Parallel()
+
+	noz := nozzle.New(nozzle.Options{
+		Interval:              time.Second,
+		AllowedFailurePercent: 50,
+	})
+
+	if fr := noz.FlowRate(); fr != 100 {
+		t.Fatalf("Expected FlowRate=100 but got %d", fr)
+	}
+
+	if sr := noz.SuccessRate(); sr != 100 {
+		t.Fatalf("Expected SuccessRate=100 but got %d", sr)
+	}
+
+	t.Logf("Warning: This test will take at least %d seconds to run.", len(seconds()))
+
+	var act *actor
+
+	for i, second := range seconds() { //nolint:paralleltest // meant to NOT be parallel
+		if second.actor != nil {
+			act = second.actor
+		}
+
+		t.Run(fmt.Sprintf("Second %d rate=%d", i, second.flowRate), func(t *testing.T) {
+			if fr := noz.FlowRate(); fr != second.flowRate {
+				t.Errorf("FlowRate want=%d got=%d", second.flowRate, fr)
+			}
+
+			var calls int
+
+			for range 1000 {
+				noz.DoError(func() error {
+					calls++
+
+					err := act.do()
+
+					return err
 				})
 			}
 
