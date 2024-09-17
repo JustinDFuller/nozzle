@@ -38,7 +38,7 @@ func ExampleNozzle_DoBool() {
 	})
 
 	fmt.Println(n.SuccessRate())
-	// Output: 
+	// Output:
 	// 100
 	// 50
 }
@@ -63,9 +63,9 @@ func ExampleNozzle_DoError() {
 	n.DoError(func() error {
 		return ErrNotAllowed
 	})
-	
+
 	fmt.Println(n.FailureRate())
-	// Output: 
+	// Output:
 	// 100
 	// 50
 }
@@ -97,7 +97,7 @@ func ExampleNozzle_FlowRate() {
 			return i%2 == 0 // Alternates between true and false
 		})
 	}
-	
+
 	fmt.Println(n.FlowRate())
 	// Output: 100
 }
