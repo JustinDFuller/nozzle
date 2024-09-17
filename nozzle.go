@@ -90,39 +90,34 @@ func New(options Options) *Nozzle {
 		state:    Opening,
 	}
 
-	go func() {
-		for range time.Tick(options.Interval) {
-			n.calculate()
-		}
-	}()
+	go tick(&n)
 
 	return &n
 }
 
-// Do executes a callback function while respecting the Nozzle's state.
-// It monitors how many calls have been allowed and compares it with the flowRate to determine if this particular call will be allowed.
+func tick(n *Nozzle) {
+	for range time.Tick(n.Options.Interval) {
+		n.calculate()
+	}
+}
+
+// DoBool executes a callback function while respecting the Nozzle's state.
+// It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
 //
-// The callback function receives two function arguments: success and failure.
-// You must call success if your callback function succeeded.
-// You must call failure if your callback function failed.
-//
-// These functions will always be non-nil.
+// The callback function receives no arguments and should return a boolean value.
+// If the callback returns true, the success method will be called, otherwise the failure method will be called.
 //
 // Example:
 //
 //	var n nozzle.Nozzle
 //
-//	n.Do(func(success, failure func()) {
+//	n.DoBool(func() bool {
 //		err := someFuncThatCanFail()
-//		if err == nil {
-//			success()
-//		} else {
-//			failure()
-//		}
+//		return err == nil
 //	})
 //
-// If you do not call success/failure, Nozzle will have no effect.
-func (n *Nozzle) Do(fn func(func(), func())) {
+// If the callback function does not return true or false, Nozzle's behavior will not be affected.
+func (n *Nozzle) DoBool(fn func() bool) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -136,7 +131,11 @@ func (n *Nozzle) Do(fn func(func(), func())) {
 
 	if allow {
 		n.allowed++
-		fn(n.success, n.failure)
+		if fn() {
+			n.success()
+		} else {
+			n.failure()
+		}
 	} else {
 		n.blocked++
 	}

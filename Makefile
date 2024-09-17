@@ -19,3 +19,19 @@ test: lint
 .PHONY: test-watch
 test-watch:
 	@reflex --decoration=none -s -- sh -c "clear && $(MAKE) test";
+
+.PHONY: bench
+bench:
+	@go test -run=^$ -v -race -benchmem -bench .;
+
+.PHONY: bench-memprofile
+bench-memprofile:
+	@go test -run=^$ -bench=. -benchmem -memprofile mem.out;
+
+.PHONY: analyze-memprofile
+analyze-memprofile:
+	@go tool pprof mem.out;
+
+.PHONY: analyze-build
+analyze-build:
+	@go build -gcflags="-m" .;

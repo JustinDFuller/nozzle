@@ -23,6 +23,8 @@ func newActor(limit int) actor {
 	}
 }
 
+var ErrNotAllowed = errors.New("not allowed")
+
 func (a *actor) do() error {
 	if a.limiter.Allow() {
 		a.count++
@@ -34,7 +36,7 @@ func (a *actor) do() error {
 	a.count++
 	a.fail++
 
-	return errors.New("not allowed") //nolint:err113 // Just a testing error
+	return ErrNotAllowed
 }
 
 func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
@@ -346,23 +348,12 @@ func TestNozzleBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should N
 			var calls int
 
 			for range 1000 {
-				noz.Do(func(success, failure func()) {
+				noz.DoBool(func() bool {
 					calls++
 
-					if success == nil {
-						t.Errorf("Got nil success function")
-					}
-
-					if failure == nil {
-						t.Errorf("Got nil failure function")
-					}
-
 					err := act.do()
-					if err == nil {
-						success()
-					} else {
-						failure()
-					}
+
+					return err == nil
 				})
 			}
 
