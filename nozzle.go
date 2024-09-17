@@ -5,46 +5,76 @@ import (
 	"time"
 )
 
+// Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
+// It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
+// see nozzle.New docs for how to create a Nozzle.
+// see nozzle.Options docs for how to modify a Nozzle's behavior.
 type Nozzle struct {
+	// Options controls how the Nozzle works.
+	// See the nozzle.Options docs for how it works.
 	Options Options
 
-	multiplier int
-	flowRate   int
-	successes  int64
-	failures   int64
-	allowed    int64
-	blocked    int64
-	start      time.Time
-	mut        sync.RWMutex
-	state      State
-	ticker     chan struct{}
+	// decreaseBy adjusts the rate at which the flowRate changes.
+	// It determines how quickly the Nozzle opens or closes.
+	// Example: If decreaseBy is -2, flowRate decreases faster than if decreaseBy is -1
+	decreaseBy int
+	
+	// flowRate indicates the percentage of allowed operations at any given time.
+	// Example: A flowRate of 100 means all operations are allowed, while a flowRate of 0 means none are allowed.
+	flowRate int
+	
+	// successes counts the number of successful operations since the last reset.
+	// Example: If 50 operations succeeded, successes will be 50.
+	successes int64
+	
+	// failures counts the number of failed operations since the last reset.
+	// Example: If 20 operations failed, failures will be 20.
+	failures int64
+	
+	// allowed counts the number of operations that were allowed in the current interval.
+	// Example: If 70 operations were allowed, allowed will be 70.
+	allowed int64
+	
+	// blocked counts the number of operations that were blocked in the current interval.
+	// Example: If 30 operations were blocked, blocked will be 30.
+	blocked int64
+	
+	// start records the time when the current interval started.
+	// Example: If the interval started at 10:00 AM, start will be the time corresponding to 10:00 AM.
+	start time.Time
+	
+	// mut is a read-write mutex that ensures thread-safe access to Nozzle's state.
+	// Example: It prevents concurrent read and write operations from causing inconsistencies when multiple goroutines interact with Nozzle.
+	mut sync.RWMutex
+	
+	// state represents whether the Nozzle is currently opening or closing.
+	// Example: If the Nozzle is adjusting to increase the flow rate, state will be Opening.
+	state State
+	
+	// ticker is a channel used to signal the occurrence of a new tick.
+	// Example: It allows other parts of the code to react to time-based events, such as triggering a status update.
+	ticker chan struct{}
 }
 
 // Options controls the behavior of the Nozzle.
+// See each field for explanations.
 type Options struct {
-	// Interval controls how often the Nozzle will process.
-	//
+	// Interval controls how often the Nozzle will process its state.
 	// Example:
 	//
-	//	Interval: time.Second
-	//	Interval: time.Millisecond * 100
+	//	Interval: time.Second      // Processes state every second
+	//	Interval: time.Millisecond * 100  // Processes state every 100 milliseconds
 	//
 	// The best interval depends on the needs of your application.
 	// If you are unsure, start with 1 second.
 	Interval time.Duration
-	// AllowedFailurePercent determines when the Nozzle should close.
-	// It is an integer that represents a percentage.
-	//
+	
+	// AllowedFailurePercent sets the threshold for the failure rate at which the Nozzle should open or close.
 	// Example:
 	//
-	// 	0 means 0% failure rate, no failures allowed.
-	// 	100 means 100% failure rate, all failures allowed.
-	//	50 means 50% failure rate, 50% failures allowed.
-	//
-	// At or above this failure percent, the Nozzle will attempt to open as far as possible.
-	// Below this failure percent, the Nozzle will close until it is no longer below this percent.
-	// If it never rises above this failure percent, the Nozzle will completely close.
-	// If it never falls below this failure percent, the Nozzle will completely open.
+	//	AllowedFailurePercent: 0    // No failures allowed
+	//	AllowedFailurePercent: 50   // Allows up to 50% failure rate
+	//	AllowedFailurePercent: 100  // Allows all failures
 	//
 	// The best FailurePercent depends on the needs of your application.
 	// If you are unsure, start with 50%.
@@ -79,7 +109,7 @@ const (
 //
 //	nozzle.New(nozzle.Options{
 //		Interval: time.Second,
-//		AllowedFailureRate: 50,
+//		AllowedFailurePercent: 50,
 //	})
 //
 // See docs of nozzle.Options for details about each Option field.
@@ -95,6 +125,8 @@ func New(options Options) *Nozzle {
 	return &n
 }
 
+// tick periodically invokes the calculate method based on the Nozzle's interval.
+// It ensures the Nozzle processes its state updates at regular intervals.
 func tick(n *Nozzle) {
 	for range time.Tick(n.Options.Interval) {
 		n.calculate()
@@ -181,6 +213,8 @@ func (n *Nozzle) DoError(fn func() error) {
 	}
 }
 
+// calculate updates the Nozzle's state based on the elapsed time and failure rate.
+// It determines whether to open or close the Nozzle and triggers the ticker if necessary.
 func (n *Nozzle) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
@@ -204,34 +238,40 @@ func (n *Nozzle) calculate() {
 	}
 }
 
+// close reduces the flow rate and increases the multiplier to speed up the closing process.
+// It is called when the failure rate exceeds the allowed threshold.
 func (n *Nozzle) close() {
 	if n.flowRate == 0 {
 		return
 	}
 
-	mult := n.multiplier
+	mult := n.decreaseBy
 	if mult > -1 {
 		mult = -1
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-	n.multiplier = mult * 2
+	n.decreaseBy = mult * 2
 }
 
+// open increases the flow rate and doubles the multiplier to speed up the opening process.
+// It is called when the failure rate is within the allowed threshold.
 func (n *Nozzle) open() {
 	if n.flowRate == 100 {
 		return
 	}
 
-	mult := n.multiplier
+	mult := n.decreaseBy
 	if mult < 1 {
 		mult = 1
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-	n.multiplier = mult * 2
+	n.decreaseBy = mult * 2
 }
 
+// reset reinitializes the Nozzle's state for the next interval.
+// It sets the start time to now and clears the counters for successes, failures, allowed, and blocked operations.
 func (n *Nozzle) reset() {
 	n.start = time.Now()
 	n.successes = 0
@@ -240,20 +280,21 @@ func (n *Nozzle) reset() {
 	n.blocked = 0
 }
 
+// success increments the count of successful operations.
+// This contributes to calculating the success rate.
 func (n *Nozzle) success() {
 	n.successes++
 }
 
+// failure increments the count of failed operations.
+// This contributes to calculating the failure rate.
 func (n *Nozzle) failure() {
 	n.failures++
 }
 
 // FlowRate reports the current flow rate.
 // The flow rate determines how many calls will be allowed.
-// Ex: A flow rate of 100 will allow all calls.
-//
-//	A flow rate of 0 will allow no calls.
-//	A flow rate of 50 will allow 50% of calls.
+// Example: A flow rate of 100 will allow all calls, while a flow rate of 50 will allow 50% of calls.
 func (n *Nozzle) FlowRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -261,6 +302,8 @@ func (n *Nozzle) FlowRate() int {
 	return n.flowRate
 }
 
+// failureRate calculates the percentage of failed operations out of the total operations.
+// Example: With 500 failures and 500 successes, the failure rate will be 50%.
 func (n *Nozzle) failureRate() int {
 	if n.failures == 0 && n.successes == 0 {
 		return 0
@@ -271,9 +314,9 @@ func (n *Nozzle) failureRate() int {
 	return int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
 }
 
-// SuccessRate reports the success rate of nozzle calls.
-// If 100% of nozzle.Do calls are reporting success, the success rate will be 100.
-// If 0% of calls are reporting success, success rate will be 0.
+// SuccessRate reports the success rate of Nozzle calls.
+// It calculates the percentage of successful operations out of the total operations.
+// Example: With 90 successes and 10 failures, the success rate will be 90%.
 func (n *Nozzle) SuccessRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -289,9 +332,9 @@ func (n *Nozzle) SuccessRate() int {
 	return 100 - n.failureRate()
 }
 
-// FailureRate reports the failure rate of nozzle calls.
-// If 100% of nozzle.Do calls are reporting failure, the failure rate will be 100.
-// If 0% of calls are reporting failure, failure rate will be 0.
+// FailureRate reports the failure rate of Nozzle calls.
+// It calculates the percentage of failed operations out of the total operations.
+// Example: With 10 failures and 90 successes, the failure rate will be 10%.
 func (n *Nozzle) FailureRate() int {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -307,8 +350,9 @@ func (n *Nozzle) FailureRate() int {
 	return n.failureRate()
 }
 
-// State reports the current state of the nozzle.
-// Except for an un-initialized Nozzle, the state is always opening or closing.
+// State reports the current state of the Nozzle.
+// It reflects whether the Nozzle is currently in the process of opening or closing.
+// Example: If the Nozzle is increasing its flow rate, the state will be Opening.
 func (n *Nozzle) State() State {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
@@ -316,8 +360,8 @@ func (n *Nozzle) State() State {
 	return n.state
 }
 
-// Wait will block until the Nozzle processes the next tick.
-// You should most likely not use this in production, but it is useful for testing.
+// Wait blocks until the Nozzle processes the next tick.
+// This is useful for testing but should be avoided in production code.
 func (n *Nozzle) Wait() {
 	n.mut.Lock()
 
@@ -330,6 +374,8 @@ func (n *Nozzle) Wait() {
 	<-n.ticker
 }
 
+// clamp constrains the flowRate to be within the range [0, 100].
+// It ensures the flowRate stays within valid bounds to prevent unexpected behavior.
 func clamp(i int) int {
 	if i < 0 {
 		return 0
