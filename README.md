@@ -61,7 +61,7 @@ func main() {}
     })
 
     for i := 0; i < 1000; i++ {
-        n.DoError() error {
+        n.DoError(func() error {
             _, err := http.Get("https://google.com")
             
             return err
@@ -90,7 +90,7 @@ func main() {}
     })
 
     for i := 0; i < 1000; i++ {
-        n.DoBool() bool {
+        n.DoBool(func() bool {
             res, _ := http.Get("https://google.com")
             
             return res.Body == nil
