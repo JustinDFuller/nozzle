@@ -47,6 +47,6 @@ jobs:
         auth: ${{ secrets.COVERAGE_GIST_SECRET }}
         gistID: 63d4999a653a0555c9806062b40c0139
         filename: coverage.json
-        label: Go Coverage
+        label: Test Coverage
         message: ${{ steps.coverage.outputs.coverage-pct-1dp }}%
         color: ${{ steps.coverage.outputs.meets-threshold == 'true' && 'green' || 'red' }}
