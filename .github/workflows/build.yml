@@ -6,8 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write
 jobs:
-
   build:
     runs-on: ubuntu-latest
     steps:
@@ -44,7 +45,7 @@ jobs:
       uses: schneegans/dynamic-badges-action@v1.7.0
       if: github.ref_name == 'main'
       with:
-        auth: ${{ secrets.COVERAGE_GIST_SECRET }}
+        auth: ${{ secrets.GIST_SECRET }}
         gistID: 63d4999a653a0555c9806062b40c0139
         filename: coverage.json
         label: Test Coverage
