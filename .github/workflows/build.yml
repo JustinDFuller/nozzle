@@ -31,3 +31,22 @@ jobs:
       uses: golangci/golangci-lint-action@v6
       with:
         version: v1.60
+
+    - uses: gwatts/go-coverage-action@v2
+      id: coverage
+      with:
+        # Optional coverage threshold
+        # use fail-coverage to determine what should happen below this threshold
+        coverage-threshold: 100
+        cover-pkg: ./...
+        
+    - name: Update coverage badge
+      uses: schneegans/dynamic-badges-action@v1.7.0
+      if: github.ref_name == 'main'
+      with:
+        auth: ${{ secrets.COVERAGE_GIST_SECRET }}
+        gistID: 63d4999a653a0555c9806062b40c0139
+        filename: coverage.json
+        label: Go Coverage
+        message: ${{ steps.coverage.outputs.coverage-pct-1dp }}%
+        color: ${{ steps.coverage.outputs.meets-threshold == 'true' && 'green' || 'red' }}
