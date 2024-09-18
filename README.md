@@ -99,6 +99,40 @@ func main() {}
 }
 ```
 
+## Observability
+
+You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occured.
+
+```go
+noz := nozzle.New(nozzle.Options{
+    Interval:              time.Second,
+    AllowedFailurePercent: 50,
+    OnStateChange: func(s nozzle.State) {
+        logger.Info(
+            "Nozzle State Change", 
+            "state", 
+            s, 
+            "flowRate", 
+            noz.FlowRate(),
+            "failureRate",
+            noz.FailureRate(),
+            "successRate",
+            noz.SuccessRate(),
+        )
+        /**
+         Example output:
+         {
+            "message": "Nozzle State Change",
+            "state": "opening",
+            "flowRate": 50,
+            "failureRate": 20,
+            "successRate": 80
+         }
+        **/
+    },
+})
+```
+
 ## Performance
 
 The performance is excellent. 0 bytes per operation, 0 allocations per operation. It works with concurrent goroutines without any race conditions.

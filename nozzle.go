@@ -79,6 +79,10 @@ type Options struct {
 	// The best FailurePercent depends on the needs of your application.
 	// If you are unsure, start with 50%.
 	AllowedFailurePercent int
+
+	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
+	// This function will be called at most once per Interval.
+	OnStateChange func(State)
 }
 
 // State describes the current direction the Nozzle is moving.
@@ -223,12 +227,18 @@ func (n *Nozzle) calculate() {
 		return
 	}
 
+	originalFlowRate := n.flowRate
+
 	if n.failureRate() > n.Options.AllowedFailurePercent {
 		n.close()
 		n.state = Closing
 	} else {
 		n.open()
 		n.state = Opening
+	}
+
+	if n.flowRate != originalFlowRate && n.Options.OnStateChange != nil {
+		n.Options.OnStateChange(n.state)
 	}
 
 	n.reset()
