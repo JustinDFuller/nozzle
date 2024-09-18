@@ -153,3 +153,7 @@ BenchmarkNozzle_DoBool_Control-2         1292871             960.8 ns/op        
 PASS
 ok      github.com/justindfuller/nozzle 11.410s
 ```
+
+## Documentation
+
+Please refer to the go documentatio hosted on [pkg.go.dev](https://pkg.go.dev/github.com/justindfuller/nozzle). You can see [all available types and methods](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-index) and [runnable examples](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-examples).
