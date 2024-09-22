@@ -9,10 +9,10 @@ func TestSuccessRate(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		expected  int
-		failures  int
-		successes int
-		flowRate  int
+		expected  int64
+		failures  int64
+		successes int64
+		flowRate  int64
 	}{
 		{
 			expected:  100,
@@ -55,8 +55,8 @@ func TestSuccessRate(t *testing.T) {
 			t.Parallel()
 
 			n.flowRate = test.flowRate
-			n.failures = int64(test.failures)
-			n.successes = int64(test.successes)
+			n.failures = test.failures
+			n.successes = test.successes
 
 			if sr := n.SuccessRate(); sr != test.expected {
 				t.Errorf("Expected SuccessRate=%d Got=%d", test.expected, sr)

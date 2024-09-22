@@ -40,9 +40,9 @@ func (a *actor) do() error {
 }
 
 type second struct {
-	flowRate    int
-	successRate int
-	failureRate int
+	flowRate    int64
+	successRate int64
+	failureRate int64
 	state       nozzle.State
 	actor       *actor
 }

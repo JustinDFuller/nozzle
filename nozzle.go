@@ -17,11 +17,11 @@ type Nozzle struct {
 	// decreaseBy adjusts the rate at which the flowRate changes.
 	// It determines how quickly the Nozzle opens or closes.
 	// Example: If decreaseBy is -2, flowRate decreases faster than if decreaseBy is -1
-	decreaseBy int
+	decreaseBy int64
 
 	// flowRate indicates the percentage of allowed operations at any given time.
 	// Example: A flowRate of 100 means all operations are allowed, while a flowRate of 0 means none are allowed.
-	flowRate int
+	flowRate int64
 
 	// successes counts the number of successful operations since the last reset.
 	// Example: If 50 operations succeeded, successes will be 50.
@@ -78,7 +78,7 @@ type Options struct {
 	//
 	// The best FailurePercent depends on the needs of your application.
 	// If you are unsure, start with 50%.
-	AllowedFailurePercent int
+	AllowedFailurePercent int64
 
 	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
 	// This function will be called at most once per Interval.
@@ -157,10 +157,10 @@ func (n *Nozzle) DoBool(fn func() bool) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
-	var allowRate int
+	var allowRate int64
 
 	if n.allowed != 0 {
-		allowRate = int((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
 	}
 
 	allow := allowRate < n.flowRate
@@ -197,10 +197,10 @@ func (n *Nozzle) DoError(fn func() error) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
-	var allowRate int
+	var allowRate int64
 
 	if n.allowed != 0 {
-		allowRate = int((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
 	}
 
 	allow := allowRate < n.flowRate
@@ -261,7 +261,7 @@ func (n *Nozzle) close() {
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-	n.decreaseBy = mult * 2
+	n.decreaseBy = (mult * 2)
 }
 
 // open increases the flow rate and doubles the multiplier to speed up the opening process.
@@ -305,7 +305,7 @@ func (n *Nozzle) failure() {
 // FlowRate reports the current flow rate.
 // The flow rate determines how many calls will be allowed.
 // Example: A flow rate of 100 will allow all calls, while a flow rate of 50 will allow 50% of calls.
-func (n *Nozzle) FlowRate() int {
+func (n *Nozzle) FlowRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -314,20 +314,20 @@ func (n *Nozzle) FlowRate() int {
 
 // failureRate calculates the percentage of failed operations out of the total operations.
 // Example: With 500 failures and 500 successes, the failure rate will be 50%.
-func (n *Nozzle) failureRate() int {
+func (n *Nozzle) failureRate() int64 {
 	if n.failures == 0 && n.successes == 0 {
 		return 0
 	}
 
 	// Ex: 500 failures, 500 successes
 	// (500 / (500 + 500)) * 100 = 50
-	return int((float64(n.failures) / float64(n.failures+n.successes)) * 100)
+	return int64((float64(n.failures) / float64(n.failures+n.successes)) * 100)
 }
 
 // SuccessRate reports the success rate of Nozzle calls.
 // It calculates the percentage of successful operations out of the total operations.
 // Example: With 90 successes and 10 failures, the success rate will be 90%.
-func (n *Nozzle) SuccessRate() int {
+func (n *Nozzle) SuccessRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -345,7 +345,7 @@ func (n *Nozzle) SuccessRate() int {
 // FailureRate reports the failure rate of Nozzle calls.
 // It calculates the percentage of failed operations out of the total operations.
 // Example: With 10 failures and 90 successes, the failure rate will be 10%.
-func (n *Nozzle) FailureRate() int {
+func (n *Nozzle) FailureRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -386,7 +386,7 @@ func (n *Nozzle) Wait() {
 
 // clamp constrains the flowRate to be within the range [0, 100].
 // It ensures the flowRate stays within valid bounds to prevent unexpected behavior.
-func clamp(i int) int {
+func clamp(i int64) int64 {
 	if i < 0 {
 		return 0
 	}
