@@ -154,8 +154,7 @@ func tick(n *Nozzle) {
 //
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
 func (n *Nozzle) DoBool(fn func() bool) {
-	n.mut.Lock()
-	defer n.mut.Unlock()
+	n.mut.RLock()
 
 	var allowRate int64
 
@@ -165,15 +164,29 @@ func (n *Nozzle) DoBool(fn func() bool) {
 
 	allow := allowRate < n.flowRate
 
-	if allow {
-		n.allowed++
-		if fn() {
-			n.success()
-		} else {
-			n.failure()
-		}
-	} else {
+	n.mut.RUnlock()
+
+	if !allow {
+		n.mut.Lock()
 		n.blocked++
+		n.mut.Unlock()
+
+		return
+	}
+
+	n.mut.Lock()
+	n.allowed++
+	n.mut.Unlock()
+
+	res := fn()
+
+	n.mut.Lock()
+	defer n.mut.Unlock()
+
+	if res {
+		n.success()
+	} else {
+		n.failure()
 	}
 }
 
@@ -194,8 +207,7 @@ func (n *Nozzle) DoBool(fn func() bool) {
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
 func (n *Nozzle) DoError(fn func() error) {
-	n.mut.Lock()
-	defer n.mut.Unlock()
+	n.mut.RLock()
 
 	var allowRate int64
 
@@ -205,15 +217,29 @@ func (n *Nozzle) DoError(fn func() error) {
 
 	allow := allowRate < n.flowRate
 
-	if allow {
-		n.allowed++
-		if err := fn(); err != nil {
-			n.failure()
-		} else {
-			n.success()
-		}
-	} else {
+	n.mut.RUnlock()
+
+	if !allow {
+		n.mut.Lock()
 		n.blocked++
+		n.mut.Unlock()
+
+		return
+	}
+
+	n.mut.Lock()
+	n.allowed++
+	n.mut.Unlock()
+
+	err := fn()
+
+	n.mut.Lock()
+	defer n.mut.Unlock()
+
+	if err != nil {
+		n.failure()
+	} else {
+		n.success()
 	}
 }
 
