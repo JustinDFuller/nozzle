@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -40,6 +41,8 @@ jobs:
         # use fail-coverage to determine what should happen below this threshold
         coverage-threshold: 100
         cover-pkg: ./...
+        add-comment: false
+        fail-coverage: false
         
     - name: Update coverage badge
       uses: schneegans/dynamic-badges-action@v1.7.0
@@ -51,3 +54,9 @@ jobs:
         label: Test Coverage
         message: ${{ steps.coverage.outputs.coverage-pct-1dp }}%
         color: ${{ steps.coverage.outputs.meets-threshold == 'true' && 'green' || 'red' }}
+        
+    - name: Generate coverage tree map
+      run: | 
+        go run github.com/nikolaydubina/go-cover-treemap@latest \
+            -coverprofile ${{ steps.coverage.outputs.gocov-agg-pathname }} \
+            -only-folders=true >/tmp/treemap.svg
