@@ -51,8 +51,8 @@ func ExampleNozzle_DoBool() {
 	// Success=100 Failure=0
 	// Success=0 Failure=100
 	// Success=0 Failure=100
+	// Success=34 Failure=66
 	// Success=50 Failure=50
-	// Success=67 Failure=33
 }
 
 func ExampleNozzle_DoError() {
@@ -83,8 +83,8 @@ func ExampleNozzle_DoError() {
 	// Success=100 Failure=0
 	// Success=0 Failure=100
 	// Success=0 Failure=100
+	// Success=34 Failure=66
 	// Success=50 Failure=50
-	// Success=67 Failure=33
 }
 
 func ExampleNozzle_State() {

@@ -1,10 +1,12 @@
 {
     "run": {
-        "go": "1.23"
+        "go": "1.23.1",
+        "modules-download-mode": "readonly"
     },
     "output": {
         "sort-results": true,
-        "sort-order": "file"
+        "sort-order": "file",
+        "show-stats": true
     },
     "linters": {
         "enable-all": true,
@@ -16,13 +18,19 @@
             "funlen",
             "gocognit",
             "cyclop",
-            "maintidx"
+            "maintidx",
+            "dupl"
         ]
     },
     "issues": {
-        "fix": false
+        "fix": false,
+        "max-issues-per-linter": 0,
+        "max-same-issues": 0
     },
     "linters-settings": {
+        "wsl": {
+          "allow-cuddle-declarations": true
+        },
         "mnd": {
             "ignored-numbers": [
                 "0",
@@ -31,7 +39,10 @@
             ]
         },
         "varnamelen": {
-            "max-distance": 20
+            "max-distance": 20,
+            "ignore-decls": [
+              "wg sync.WaitGroup"
+            ]
         },
         "depguard": {
             "rules": {

@@ -13,7 +13,13 @@ lint-watch:
 .PHONY: test
 test: lint
 	@echo "Beginning tests.";
-	@go test -v -race -vet=off ./...;
+	@go test -run=$(run) -v -race -vet=off ./...;
+	@echo "Go tests passed.";
+
+.PHONY: test-fast
+test-fast:
+	@echo "Beginning tests.";
+	@go test -run=$(run) -v -race -vet=off ./...;
 	@echo "Go tests passed.";
 
 .PHONY: test-example
@@ -23,6 +29,10 @@ test-example:
 .PHONY: test-watch
 test-watch:
 	@reflex --decoration=none -s -- sh -c "clear && $(MAKE) test";
+
+.PHONY: test-watch-fast
+test-watch-fast:
+	@reflex --decoration=none -s -- sh -c "clear && $(MAKE) test-fast";
 
 .PHONY: bench
 bench:
