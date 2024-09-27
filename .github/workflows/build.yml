@@ -54,3 +54,9 @@ jobs:
         label: Test Coverage
         message: ${{ steps.coverage.outputs.coverage-pct-1dp }}%
         color: ${{ steps.coverage.outputs.meets-threshold == 'true' && 'green' || 'red' }}
+        
+    - name: Generate coverage tree map
+      run: | 
+        go run github.com/nikolaydubina/go-cover-treemap@latest \
+            -coverprofile ${{ steps.coverage.outputs.gocov-agg-pathname }} \
+            -only-folders=true >/tmp/treemap.svg
