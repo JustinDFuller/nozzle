@@ -68,6 +68,8 @@ func TestSuccessRate(t *testing.T) {
 }
 
 func TestConcurrencyBool(t *testing.T) {
+	t.Parallel()
+
 	noz := New(Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
@@ -116,6 +118,8 @@ func TestConcurrencyBool(t *testing.T) {
 }
 
 func TestConcurrencyError(t *testing.T) {
+	t.Parallel()
+
 	noz := New(Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
