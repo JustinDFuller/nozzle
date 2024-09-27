@@ -31,7 +31,7 @@ The [circuit breaker pattern](https://en.wikipedia.org/wiki/Circuit_breaker_desi
 
 In technology, the circuit breaker pattern prevents one system from overloading another, giving it time to recover.
 
-However, in many systems, particularly systems that experience errors due to extreme sudden scaling, it may not be necessary to shut things completely off. 
+However, in many systems, particularly systems that experience errors due to extreme sudden scaling, it may not be necessary to shut things completely off.
 
 ### Example Scenario
 
@@ -57,7 +57,7 @@ First, the circuit breaker: once the threshold of 25% is crossed, the circuit br
     <img src="https://github.com/user-attachments/assets/7dbc3c30-158a-45c0-91de-4c0d46e6c7de" alt="Circuit Breaker Illustration" height="300px" />
 </p>
 
-Second, the nozzle: once the threshold of 25% is crossed, the nozzle begins closing. First, slowly, then increasingly more quickly. Once it notices the failure rate has decreased below the threshold, it begins to open again. 
+Second, the nozzle: once the threshold of 25% is crossed, the nozzle begins closing. First, slowly, then increasingly more quickly. Once it notices the failure rate has decreased below the threshold, it begins to open again.
 
 In this case, you should notice it takes longer to return to full throughput, but overall loses fewer requests.
 
@@ -85,17 +85,24 @@ import (
 )
 
 func main() {}
-    n := nozzle.New(nozzle.Options{
+    n := nozzle.New[*http.Response](nozzle.Options{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
 
     for i := 0; i < 1000; i++ {
-        n.DoError(func() error {
-            _, err := http.Get("https://google.com")
-            
-            return err
+        res, err := n.DoError(func() (*http.Response, error) {
+            res, err := http.Get("https://google.com")
+
+            return res, err
         })
+        if err != nil {
+            log.Println(err)
+
+            continue
+        }
+
+        log.Println(res)
     }
 }
 ```
@@ -114,20 +121,31 @@ import (
 )
 
 func main() {}
-    n := nozzle.New(nozzle.Options{
+    n := nozzle.New[*http.Response](nozzle.Options{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
 
     for i := 0; i < 1000; i++ {
-        n.DoBool(func() bool {
-            res, _ := http.Get("https://google.com")
-            
-            return res.Body == nil
+        res, ok := n.DoBool(func() (*http.Response, bool) {
+            res, err := http.Get("https://google.com")
+
+            return res, err != nil && res.StatusCode == http.StatusOK
         })
+        if !ok {
+            log.Println("Request failed")
+
+            continue
+        }
+
+        log.Println(res)
     }
 }
 ```
+
+### Generics
+
+As you can see, this package uses generics. This allows the Nozzle's methods to return the same type as the function you pass to it. This allows the Nozzle to perform its work without interrupting the control-flow of your application.
 
 ## Observability
 
@@ -139,10 +157,10 @@ noz := nozzle.New(nozzle.Options{
     AllowedFailurePercent: 50,
     OnStateChange: func(s nozzle.State) {
         logger.Info(
-            "Nozzle State Change", 
-            "state", 
-            s, 
-            "flowRate", 
+            "Nozzle State Change",
+            "state",
+            s,
+            "flowRate",
             noz.FlowRate(),
             "failureRate",
             noz.FailureRate(),
@@ -172,7 +190,7 @@ The performance is excellent. 0 bytes per operation, 0 allocations per operation
 goos: linux
 goarch: amd64
 pkg: github.com/justindfuller/nozzle
-cpu: AMD EPYC 7763 64-Core Processor                
+cpu: AMD EPYC 7763 64-Core Processor
 BenchmarkNozzle_DoBool_Open-2             908032            1316 ns/op               0 B/op       0 allocs/op
 BenchmarkNozzle_DoBool_Closed-2          2301523             445.2 ns/op             0 B/op       0 allocs/op
 BenchmarkNozzle_DoBool_Half-2             981314            1313 ns/op               0 B/op       0 allocs/op
