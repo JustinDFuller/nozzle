@@ -1,10 +1,12 @@
 {
     "run": {
-        "go": "1.23"
+        "go": "1.23.1",
+        "modules-download-mode": "readonly"
     },
     "output": {
         "sort-results": true,
-        "sort-order": "file"
+        "sort-order": "file",
+        "show-stats": true
     },
     "linters": {
         "enable-all": true,
@@ -20,7 +22,9 @@
         ]
     },
     "issues": {
-        "fix": false
+        "fix": false,
+        "max-issues-per-linter": 0,
+        "max-same-issues": 0
     },
     "linters-settings": {
         "wsl": {
@@ -36,7 +40,7 @@
         "varnamelen": {
             "max-distance": 20,
             "ignore-decls": [
-              "wg *sync.WaitGroup"
+              "wg sync.WaitGroup"
             ]
         },
         "depguard": {

@@ -439,10 +439,10 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 	}
 }
 
-// tolerance is the amount of error allowed in the tests
+// tolerance is the amount of error allowed in the tests.
 const tolerance = 1
 
-// within returns true if a and b are within tolerance of each other
+// within returns true if a and b are within tolerance of each other.
 func within(a, b int64) (int64, bool) {
 	if a == b {
 		return 0, true
