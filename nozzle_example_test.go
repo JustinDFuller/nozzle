@@ -8,7 +8,7 @@ import (
 )
 
 func ExampleNew() {
-	noz := nozzle.New[any](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
@@ -24,7 +24,7 @@ func ExampleNew() {
 }
 
 func ExampleNozzle_DoBool() {
-	noz := nozzle.New[int](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[int]{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
@@ -56,7 +56,7 @@ func ExampleNozzle_DoBool() {
 }
 
 func ExampleNozzle_DoError() {
-	noz := nozzle.New[string](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[string]{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
@@ -92,7 +92,7 @@ func ExampleNozzle_State() {
 		name string
 	}
 
-	noz := nozzle.New[*example](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[*example]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 0,
 	})
@@ -128,7 +128,7 @@ func ExampleNozzle_State() {
 }
 
 func ExampleNozzle_FlowRate() {
-	noz := nozzle.New[any](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Millisecond * 50,
 		AllowedFailurePercent: 10,
 	})
@@ -173,7 +173,7 @@ func ExampleNozzle_FlowRate() {
 }
 
 func ExampleNozzle_Wait() {
-	noz := nozzle.New[map[string]any](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[map[string]any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
@@ -196,11 +196,14 @@ func ExampleNozzle_Wait() {
 }
 
 func ExampleOptions_OnStateChange() {
-	noz := nozzle.New[[]string](nozzle.Options{
+	noz := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(s nozzle.State) {
-			fmt.Printf("New State: %s\n", s)
+		OnStateChange: func(n *nozzle.Nozzle[[]string]) {
+			fmt.Printf("New State: %s\n", n.State())
+			fmt.Printf("Failure Rate: %d\n", n.FailureRate())
+			fmt.Printf("Success Rate: %d\n", n.SuccessRate())
+			fmt.Printf("Flow Rate: %d\n", n.FlowRate())
 		},
 	})
 
@@ -222,5 +225,11 @@ func ExampleOptions_OnStateChange() {
 
 	// Output:
 	// New State: closing
+	// Failure Rate: 100
+	// Success Rate: 0
+	// Flow Rate: 99
 	// New State: opening
+	// Failure Rate: 0
+	// Success Rate: 100
+	// Flow Rate: 100
 }

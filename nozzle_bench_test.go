@@ -8,7 +8,7 @@ import (
 )
 
 func BenchmarkNozzle_DoBool_Open(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(b.N)
 
 	for i := 0; i < b.N; i++ {
@@ -21,7 +21,7 @@ func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(0)
 
 	for i := 0; i < b.N; i++ {
@@ -34,7 +34,7 @@ func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoBool_Half(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(b.N / 2)
 
 	for i := 0; i < b.N; i++ {
@@ -47,7 +47,7 @@ func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Open(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(b.N)
 
 	for i := 0; i < b.N; i++ {
@@ -60,7 +60,7 @@ func BenchmarkNozzle_DoError_Open(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Closed(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(0)
 
 	for i := 0; i < b.N; i++ {
@@ -73,7 +73,7 @@ func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Half(b *testing.B) {
-	noz := nozzle.New[any](nozzle.Options{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 	act := newActor(b.N / 2)
 
 	for i := 0; i < b.N; i++ {
