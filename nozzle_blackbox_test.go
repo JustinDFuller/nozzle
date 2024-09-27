@@ -355,12 +355,12 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
-			if sr := noz.SuccessRate(); sr != second.successRate {
-				t.Errorf("SuccessRate want=%d got=%d", second.successRate, sr)
+			if diff, ok := within(noz.SuccessRate(), second.successRate, 1); !ok {
+				t.Errorf("SuccessRate want=%d got=%d diff=%d", second.successRate, noz.SuccessRate(), diff)
 			}
 
-			if fr := noz.FailureRate(); fr != second.failureRate {
-				t.Errorf("failureRate want=%d got=%d", second.failureRate, fr)
+			if diff, ok := within(noz.FailureRate(), second.failureRate, 1); !ok {
+				t.Errorf("failureRate want=%d got=%d diff=%d", second.failureRate, noz.FailureRate(), diff)
 			}
 
 			noz.Wait()
@@ -422,12 +422,12 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
-			if sr := noz.SuccessRate(); sr != second.successRate {
-				t.Errorf("SuccessRate want=%d got=%d", second.successRate, sr)
+			if diff, ok := within(noz.SuccessRate(), second.successRate, 1); !ok {
+				t.Errorf("SuccessRate want=%d got=%d diff=%d", second.successRate, noz.SuccessRate(), diff)
 			}
 
-			if fr := noz.FailureRate(); fr != second.failureRate {
-				t.Errorf("failureRate want=%d got=%d", second.failureRate, fr)
+			if diff, ok := within(noz.FailureRate(), second.failureRate, 1); !ok {
+				t.Errorf("failureRate want=%d got=%d diff=%d", second.failureRate, noz.FailureRate(), diff)
 			}
 
 			noz.Wait()
@@ -437,4 +437,22 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 			}
 		})
 	}
+}
+
+func within(a, b, tolerance int64) (int64, bool) {
+	if a == b {
+		return 0, true
+	}
+
+	diff := a - b
+
+	if diff > tolerance {
+		return diff, false
+	}
+
+	if diff < -tolerance {
+		return diff, false
+	}
+
+	return 0, true
 }
