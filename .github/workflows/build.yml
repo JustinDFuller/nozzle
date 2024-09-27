@@ -43,7 +43,6 @@ jobs:
         cover-pkg: ./...
         add-comment: false
         fail-coverage: false
-        test-args: "-v"
         
     - name: Update coverage badge
       uses: schneegans/dynamic-badges-action@v1.7.0
