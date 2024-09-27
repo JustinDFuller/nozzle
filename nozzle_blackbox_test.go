@@ -55,8 +55,8 @@ func seconds() []second {
 	return []second{
 		{
 			flowRate:    100,
-			successRate: 11,
-			failureRate: 89,
+			successRate: 10,
+			failureRate: 90,
 			state:       nozzle.Closing,
 			actor:       &tenPercent,
 		},
@@ -176,8 +176,8 @@ func seconds() []second {
 		},
 		{
 			flowRate:    22,
-			successRate: 46,
-			failureRate: 54,
+			successRate: 45,
+			failureRate: 55,
 			state:       nozzle.Closing,
 		},
 		{
@@ -308,6 +308,10 @@ func seconds() []second {
 func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
 	t.Parallel()
 
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
+
 	noz := nozzle.New(nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
@@ -370,6 +374,10 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 
 func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests should NOT be parallel (order matters)
 	t.Parallel()
+
+	if testing.Short() {
+		t.Skip("skipping test in short mode.")
+	}
 
 	noz := nozzle.New(nozzle.Options{
 		Interval:              time.Second,

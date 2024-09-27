@@ -154,7 +154,7 @@ func tick(n *Nozzle) {
 //
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
 func (n *Nozzle) DoBool(fn func() bool) {
-	n.mut.RLock()
+	n.mut.Lock()
 
 	var allowRate int64
 
@@ -162,26 +162,26 @@ func (n *Nozzle) DoBool(fn func() bool) {
 		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
 	}
 
-	allow := allowRate < n.flowRate
+	var allow bool
 
-	n.mut.RUnlock()
+	if n.flowRate == 100 {
+		allow = true
+	} else if n.flowRate > 0 {
+		allow = allowRate < n.flowRate
+	}
 
 	if !allow {
-		n.mut.Lock()
 		n.blocked++
 		n.mut.Unlock()
 
 		return
 	}
 
-	n.mut.Lock()
 	n.allowed++
+
 	n.mut.Unlock()
 
 	res := fn()
-
-	n.mut.Lock()
-	defer n.mut.Unlock()
 
 	if res {
 		n.success()
@@ -207,7 +207,7 @@ func (n *Nozzle) DoBool(fn func() bool) {
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
 func (n *Nozzle) DoError(fn func() error) {
-	n.mut.RLock()
+	n.mut.Lock()
 
 	var allowRate int64
 
@@ -215,26 +215,25 @@ func (n *Nozzle) DoError(fn func() error) {
 		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
 	}
 
-	allow := allowRate < n.flowRate
+	var allow bool
 
-	n.mut.RUnlock()
+	if n.flowRate == 100 {
+		allow = true
+	} else if n.flowRate > 0 {
+		allow = allowRate < n.flowRate
+	}
 
 	if !allow {
-		n.mut.Lock()
 		n.blocked++
 		n.mut.Unlock()
 
 		return
 	}
 
-	n.mut.Lock()
 	n.allowed++
 	n.mut.Unlock()
 
 	err := fn()
-
-	n.mut.Lock()
-	defer n.mut.Unlock()
 
 	if err != nil {
 		n.failure()
@@ -319,12 +318,18 @@ func (n *Nozzle) reset() {
 // success increments the count of successful operations.
 // This contributes to calculating the success rate.
 func (n *Nozzle) success() {
+	n.mut.Lock()
+	defer n.mut.Unlock()
+
 	n.successes++
 }
 
 // failure increments the count of failed operations.
 // This contributes to calculating the failure rate.
 func (n *Nozzle) failure() {
+	n.mut.Lock()
+	defer n.mut.Unlock()
+
 	n.failures++
 }
 
