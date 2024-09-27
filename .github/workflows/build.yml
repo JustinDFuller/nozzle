@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
 
 jobs:
   build:
@@ -40,8 +39,11 @@ jobs:
       with:
         # Optional coverage threshold
         # use fail-coverage to determine what should happen below this threshold
-        coverage-threshold: 98
+        coverage-threshold: 100
         cover-pkg: ./...
+        add-comment: false
+        fail-coverage: false
+        test-args: "-v"
         
     - name: Update coverage badge
       uses: schneegans/dynamic-badges-action@v1.7.0
