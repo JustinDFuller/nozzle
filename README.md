@@ -85,7 +85,7 @@ import (
 )
 
 func main() {}
-    n := nozzle.New[*http.Response](nozzle.Options{
+    n := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
@@ -121,7 +121,7 @@ import (
 )
 
 func main() {}
-    n := nozzle.New[*http.Response](nozzle.Options{
+    n := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
@@ -152,10 +152,10 @@ As you can see, this package uses generics. This allows the Nozzle's methods to 
 You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occured.
 
 ```go
-nozzle.Options{
+nozzle.New(nozzle.Options[*example]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
-    OnStateChange: func(s nozzle.State) {
+    OnStateChange: func(noz *nozzle.Nozzle[*example]) {
         logger.Info(
             "Nozzle State Change",
             "state",

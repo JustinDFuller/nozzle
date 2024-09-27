@@ -33,7 +33,7 @@ var ErrBlocked = errors.New("nozzle: blocked")
 type Nozzle[T any] struct {
 	// Options controls how the Nozzle works.
 	// See the nozzle.Options docs for how it works.
-	Options Options
+	Options Options[T]
 
 	// decreaseBy adjusts the rate at which the flowRate changes.
 	// It determines how quickly the Nozzle opens or closes.
@@ -79,7 +79,7 @@ type Nozzle[T any] struct {
 
 // Options controls the behavior of the Nozzle.
 // See each field for explanations.
-type Options struct {
+type Options[T any] struct {
 	// Interval controls how often the Nozzle will process its state.
 	// Example:
 	//
@@ -103,7 +103,7 @@ type Options struct {
 
 	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
 	// This function will be called at most once per Interval.
-	OnStateChange func(State)
+	OnStateChange func(*Nozzle[T])
 }
 
 // State describes the current direction the Nozzle is moving.
@@ -138,7 +138,7 @@ const (
 //	})
 //
 // See docs of nozzle.Options for details about each Option field.
-func New[T any](options Options) *Nozzle[T] {
+func New[T any](options Options[T]) *Nozzle[T] {
 	n := Nozzle[T]{
 		flowRate: 100,
 		Options:  options,
@@ -285,6 +285,7 @@ func (n *Nozzle[T]) calculate() {
 	}
 
 	originalFlowRate := n.flowRate
+	originalState := n.state
 
 	if n.failureRate() > n.Options.AllowedFailurePercent {
 		n.close()
@@ -294,14 +295,32 @@ func (n *Nozzle[T]) calculate() {
 		n.state = Opening
 	}
 
-	if n.flowRate != originalFlowRate && n.Options.OnStateChange != nil {
-		n.Options.OnStateChange(n.state)
+	var changed bool
+
+	if n.flowRate != originalFlowRate {
+		changed = true
+	}
+
+	if n.state != originalState {
+		changed = true
+	}
+
+	if changed && n.Options.OnStateChange != nil {
+		// Need to unlock so OnStateChange can call public methods.
+		n.mut.Unlock()
+
+		n.Options.OnStateChange(n)
+
+		n.mut.Lock()
 	}
 
 	n.reset()
 
 	if n.ticker != nil {
-		n.ticker <- struct{}{}
+		select {
+		case n.ticker <- struct{}{}:
+		default:
+		}
 	}
 }
 
