@@ -245,7 +245,7 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 //	if err != nil {
 //		// handle error
 //	}
-//	
+//
 //	fmt.Print(res) // Use the result
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
