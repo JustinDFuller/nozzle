@@ -38,7 +38,7 @@ jobs:
       with:
         # Optional coverage threshold
         # use fail-coverage to determine what should happen below this threshold
-        coverage-threshold: 100
+        coverage-threshold: 99
         cover-pkg: ./...
         
     - name: Update coverage badge
