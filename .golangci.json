@@ -23,6 +23,9 @@
         "fix": false
     },
     "linters-settings": {
+        "wsl": {
+          "allow-cuddle-declarations": true
+        },
         "mnd": {
             "ignored-numbers": [
                 "0",
@@ -31,7 +34,10 @@
             ]
         },
         "varnamelen": {
-            "max-distance": 20
+            "max-distance": 20,
+            "ignore-decls": [
+              "wg *sync.WaitGroup"
+            ]
         },
         "depguard": {
             "rules": {

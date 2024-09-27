@@ -153,7 +153,7 @@ func tick(n *Nozzle) {
 //	})
 //
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
-func (n *Nozzle) DoBool(fn func() bool) {
+func (n *Nozzle) DoBool(callback func() bool) {
 	n.mut.Lock()
 
 	var allowRate int64
@@ -181,7 +181,7 @@ func (n *Nozzle) DoBool(fn func() bool) {
 
 	n.mut.Unlock()
 
-	res := fn()
+	res := callback()
 
 	if res {
 		n.success()
@@ -206,7 +206,7 @@ func (n *Nozzle) DoBool(fn func() bool) {
 //	})
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
-func (n *Nozzle) DoError(fn func() error) {
+func (n *Nozzle) DoError(callback func() error) {
 	n.mut.Lock()
 
 	var allowRate int64
@@ -233,7 +233,7 @@ func (n *Nozzle) DoError(fn func() error) {
 	n.allowed++
 	n.mut.Unlock()
 
-	err := fn()
+	err := callback()
 
 	if err != nil {
 		n.failure()

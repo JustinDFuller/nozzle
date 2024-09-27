@@ -355,11 +355,11 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
-			if diff, ok := within(noz.SuccessRate(), second.successRate, 1); !ok {
+			if diff, ok := within(noz.SuccessRate(), second.successRate); !ok {
 				t.Errorf("SuccessRate want=%d got=%d diff=%d", second.successRate, noz.SuccessRate(), diff)
 			}
 
-			if diff, ok := within(noz.FailureRate(), second.failureRate, 1); !ok {
+			if diff, ok := within(noz.FailureRate(), second.failureRate); !ok {
 				t.Errorf("failureRate want=%d got=%d diff=%d", second.failureRate, noz.FailureRate(), diff)
 			}
 
@@ -422,11 +422,11 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
-			if diff, ok := within(noz.SuccessRate(), second.successRate, 1); !ok {
+			if diff, ok := within(noz.SuccessRate(), second.successRate); !ok {
 				t.Errorf("SuccessRate want=%d got=%d diff=%d", second.successRate, noz.SuccessRate(), diff)
 			}
 
-			if diff, ok := within(noz.FailureRate(), second.failureRate, 1); !ok {
+			if diff, ok := within(noz.FailureRate(), second.failureRate); !ok {
 				t.Errorf("failureRate want=%d got=%d diff=%d", second.failureRate, noz.FailureRate(), diff)
 			}
 
@@ -439,7 +439,11 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 	}
 }
 
-func within(a, b, tolerance int64) (int64, bool) {
+// tolerance is the amount of error allowed in the tests
+const tolerance = 1
+
+// within returns true if a and b are within tolerance of each other
+func within(a, b int64) (int64, bool) {
 	if a == b {
 		return 0, true
 	}

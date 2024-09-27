@@ -52,15 +52,15 @@ func TestSuccessRate(t *testing.T) {
 		t.Run(fmt.Sprintf("test=%d", i), func(t *testing.T) {
 			t.Parallel()
 
-			n := Nozzle{
+			noz := Nozzle{
 				flowRate: 100,
 			}
 
-			n.flowRate = test.flowRate
-			n.failures = test.failures
-			n.successes = test.successes
+			noz.flowRate = test.flowRate
+			noz.failures = test.failures
+			noz.successes = test.successes
 
-			if sr := n.SuccessRate(); sr != test.expected {
+			if sr := noz.SuccessRate(); sr != test.expected {
 				t.Errorf("Expected SuccessRate=%d Got=%d", test.expected, sr)
 			}
 		})
@@ -68,7 +68,7 @@ func TestSuccessRate(t *testing.T) {
 }
 
 func TestConcurrencyBool(t *testing.T) {
-	n := New(Options{
+	noz := New(Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
@@ -81,7 +81,7 @@ func TestConcurrencyBool(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		n.DoBool(func() bool {
+		noz.DoBool(func() bool {
 			defer wg.Done()
 
 			time.Sleep(10 * time.Millisecond)
@@ -96,7 +96,7 @@ func TestConcurrencyBool(t *testing.T) {
 	}()
 
 	go func() {
-		n.DoBool(func() bool {
+		noz.DoBool(func() bool {
 			defer wg.Done()
 
 			mut.Lock()
@@ -116,7 +116,7 @@ func TestConcurrencyBool(t *testing.T) {
 }
 
 func TestConcurrencyError(t *testing.T) {
-	n := New(Options{
+	noz := New(Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
@@ -129,7 +129,7 @@ func TestConcurrencyError(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		n.DoError(func() error {
+		noz.DoError(func() error {
 			defer wg.Done()
 
 			time.Sleep(10 * time.Millisecond)
@@ -144,7 +144,7 @@ func TestConcurrencyError(t *testing.T) {
 	}()
 
 	go func() {
-		n.DoError(func() error {
+		noz.DoError(func() error {
 			defer wg.Done()
 
 			mut.Lock()
