@@ -18,7 +18,8 @@
             "funlen",
             "gocognit",
             "cyclop",
-            "maintidx"
+            "maintidx",
+            "dupl"
         ]
     },
     "issues": {
