@@ -19,13 +19,22 @@
             "gocognit",
             "cyclop",
             "maintidx",
-            "dupl"
+            "dupl",
+            "ireturn",
+            "nilnil"
+
         ]
     },
     "issues": {
         "fix": false,
         "max-issues-per-linter": 0,
-        "max-same-issues": 0
+        "max-same-issues": 0,
+        "exclude-rules": [
+          {
+            "linters": ["errcheck"],
+            "text": "Error return value of `noz.DoError` is not checked"
+          }
+        ]
     },
     "linters-settings": {
         "wsl": {

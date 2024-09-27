@@ -1,15 +1,36 @@
 package nozzle
 
 import (
+	"errors"
 	"sync"
 	"time"
 )
+
+// ErrBlocked is returned when a call is blocked by the Nozzle.
+// It indicates that the Nozzle has reached its limit and is not allowing any more calls.
+// You can use this sentinel error to detect and handle this case separately.
+//
+// Example:
+//
+//	err := n.DoError(func() error {
+//		err := someFuncThatCanFail()
+//		return err
+//	})
+//
+//	if errors.Is(err, nozzle.ErrBlocked) {
+//		// handle blocked
+//	}
+//
+//	if err != nil {
+//		// handle error
+//	}
+var ErrBlocked = errors.New("nozzle: blocked")
 
 // Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
 // It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
 // see nozzle.New docs for how to create a Nozzle.
 // see nozzle.Options docs for how to modify a Nozzle's behavior.
-type Nozzle struct {
+type Nozzle[T any] struct {
 	// Options controls how the Nozzle works.
 	// See the nozzle.Options docs for how it works.
 	Options Options
@@ -117,21 +138,21 @@ const (
 //	})
 //
 // See docs of nozzle.Options for details about each Option field.
-func New(options Options) *Nozzle {
-	n := Nozzle{
+func New[T any](options Options) *Nozzle[T] {
+	n := Nozzle[T]{
 		flowRate: 100,
 		Options:  options,
 		state:    Opening,
 	}
 
-	go tick(&n)
+	go n.tick()
 
 	return &n
 }
 
 // tick periodically invokes the calculate method based on the Nozzle's interval.
 // It ensures the Nozzle processes its state updates at regular intervals.
-func tick(n *Nozzle) {
+func (n *Nozzle[T]) tick() {
 	for range time.Tick(n.Options.Interval) {
 		n.calculate()
 	}
@@ -145,15 +166,20 @@ func tick(n *Nozzle) {
 //
 // Example:
 //
-//	var n nozzle.Nozzle
+//	var n nozzle.Nozzle[*example]
 //
-//	n.DoBool(func() bool {
-//		err := someFuncThatCanFail()
-//		return err == nil
+//	res, ok := n.DoBool(func() (*example, bool) {
+//		result, err := someFuncThatCanFail()
+//		return result, err == nil
 //	})
+//	if !ok {
+//		// handle failure.
+//	}
+//
+//	fmt.Println(res) // use res.
 //
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
-func (n *Nozzle) DoBool(callback func() bool) {
+func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	n.mut.Lock()
 
 	var allowRate int64
@@ -174,20 +200,22 @@ func (n *Nozzle) DoBool(callback func() bool) {
 		n.blocked++
 		n.mut.Unlock()
 
-		return
+		return *new(T), false
 	}
 
 	n.allowed++
 
 	n.mut.Unlock()
 
-	res := callback()
+	res, ok := callback()
 
-	if res {
+	if ok {
 		n.success()
 	} else {
 		n.failure()
 	}
+
+	return res, ok
 }
 
 // DoError executes a callback function while respecting the Nozzle's state.
@@ -200,13 +228,15 @@ func (n *Nozzle) DoBool(callback func() bool) {
 //
 //	var n nozzle.Nozzle
 //
-//	n.DoError(func() error {
+//	if err := n.DoError(func() error {
 //		err := someFuncThatCanFail()
 //		return err
-//	})
+//	}); err != nil {
+//		// handle error
+//	}
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
-func (n *Nozzle) DoError(callback func() error) {
+func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	n.mut.Lock()
 
 	var allowRate int64
@@ -227,24 +257,26 @@ func (n *Nozzle) DoError(callback func() error) {
 		n.blocked++
 		n.mut.Unlock()
 
-		return
+		return *new(T), ErrBlocked
 	}
 
 	n.allowed++
 	n.mut.Unlock()
 
-	err := callback()
+	res, err := callback()
 
 	if err != nil {
 		n.failure()
 	} else {
 		n.success()
 	}
+
+	return res, err
 }
 
 // calculate updates the Nozzle's state based on the elapsed time and failure rate.
 // It determines whether to open or close the Nozzle and triggers the ticker if necessary.
-func (n *Nozzle) calculate() {
+func (n *Nozzle[T]) calculate() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -275,7 +307,7 @@ func (n *Nozzle) calculate() {
 
 // close reduces the flow rate and increases the multiplier to speed up the closing process.
 // It is called when the failure rate exceeds the allowed threshold.
-func (n *Nozzle) close() {
+func (n *Nozzle[T]) close() {
 	if n.flowRate == 0 {
 		return
 	}
@@ -291,7 +323,7 @@ func (n *Nozzle) close() {
 
 // open increases the flow rate and doubles the multiplier to speed up the opening process.
 // It is called when the failure rate is within the allowed threshold.
-func (n *Nozzle) open() {
+func (n *Nozzle[T]) open() {
 	if n.flowRate == 100 {
 		return
 	}
@@ -307,7 +339,7 @@ func (n *Nozzle) open() {
 
 // reset reinitializes the Nozzle's state for the next interval.
 // It sets the start time to now and clears the counters for successes, failures, allowed, and blocked operations.
-func (n *Nozzle) reset() {
+func (n *Nozzle[T]) reset() {
 	n.start = time.Now()
 	n.successes = 0
 	n.failures = 0
@@ -317,7 +349,7 @@ func (n *Nozzle) reset() {
 
 // success increments the count of successful operations.
 // This contributes to calculating the success rate.
-func (n *Nozzle) success() {
+func (n *Nozzle[T]) success() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -326,7 +358,7 @@ func (n *Nozzle) success() {
 
 // failure increments the count of failed operations.
 // This contributes to calculating the failure rate.
-func (n *Nozzle) failure() {
+func (n *Nozzle[T]) failure() {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -336,7 +368,7 @@ func (n *Nozzle) failure() {
 // FlowRate reports the current flow rate.
 // The flow rate determines how many calls will be allowed.
 // Example: A flow rate of 100 will allow all calls, while a flow rate of 50 will allow 50% of calls.
-func (n *Nozzle) FlowRate() int64 {
+func (n *Nozzle[T]) FlowRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -345,7 +377,7 @@ func (n *Nozzle) FlowRate() int64 {
 
 // failureRate calculates the percentage of failed operations out of the total operations.
 // Example: With 500 failures and 500 successes, the failure rate will be 50%.
-func (n *Nozzle) failureRate() int64 {
+func (n *Nozzle[T]) failureRate() int64 {
 	if n.failures == 0 && n.successes == 0 {
 		return 0
 	}
@@ -358,7 +390,7 @@ func (n *Nozzle) failureRate() int64 {
 // SuccessRate reports the success rate of Nozzle calls.
 // It calculates the percentage of successful operations out of the total operations.
 // Example: With 90 successes and 10 failures, the success rate will be 90%.
-func (n *Nozzle) SuccessRate() int64 {
+func (n *Nozzle[T]) SuccessRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -376,7 +408,7 @@ func (n *Nozzle) SuccessRate() int64 {
 // FailureRate reports the failure rate of Nozzle calls.
 // It calculates the percentage of failed operations out of the total operations.
 // Example: With 10 failures and 90 successes, the failure rate will be 10%.
-func (n *Nozzle) FailureRate() int64 {
+func (n *Nozzle[T]) FailureRate() int64 {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -394,7 +426,7 @@ func (n *Nozzle) FailureRate() int64 {
 // State reports the current state of the Nozzle.
 // It reflects whether the Nozzle is currently in the process of opening or closing.
 // Example: If the Nozzle is increasing its flow rate, the state will be Opening.
-func (n *Nozzle) State() State {
+func (n *Nozzle[T]) State() State {
 	n.mut.RLock()
 	defer n.mut.RUnlock()
 
@@ -403,7 +435,7 @@ func (n *Nozzle) State() State {
 
 // Wait blocks until the Nozzle processes the next tick.
 // This is useful for testing but should be avoided in production code.
-func (n *Nozzle) Wait() {
+func (n *Nozzle[T]) Wait() {
 	n.mut.Lock()
 
 	if n.ticker == nil {

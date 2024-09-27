@@ -8,7 +8,7 @@ import (
 )
 
 func ExampleNew() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[any](nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
@@ -24,39 +24,39 @@ func ExampleNew() {
 }
 
 func ExampleNozzle_DoBool() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[int](nozzle.Options{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
 
 	fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
 
-	for range 2 {
-		noz.DoError(func() error {
-			return ErrNotAllowed
+	for i := range 2 {
+		res, ok := noz.DoBool(func() (int, bool) {
+			return i, false
 		})
 
-		fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
+		fmt.Printf("Result=%d OK=%v Success=%d Failure=%d\n", res, ok, noz.SuccessRate(), noz.FailureRate())
 	}
 
-	for range 2 {
-		noz.DoError(func() error {
-			return nil
+	for i := range 2 {
+		res, ok := noz.DoBool(func() (int, bool) {
+			return i, true
 		})
 
-		fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
+		fmt.Printf("Result=%v OK=%v Success=%d Failure=%d\n", res, ok, noz.SuccessRate(), noz.FailureRate())
 	}
 
 	// Output:
 	// Success=100 Failure=0
-	// Success=0 Failure=100
-	// Success=0 Failure=100
-	// Success=34 Failure=66
-	// Success=50 Failure=50
+	// Result=0 OK=false Success=0 Failure=100
+	// Result=1 OK=false Success=0 Failure=100
+	// Result=0 OK=true Success=34 Failure=66
+	// Result=1 OK=true Success=50 Failure=50
 }
 
 func ExampleNozzle_DoError() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[string](nozzle.Options{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
@@ -64,31 +64,35 @@ func ExampleNozzle_DoError() {
 	fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
 
 	for range 2 {
-		noz.DoError(func() error {
-			return ErrNotAllowed
+		res, err := noz.DoError(func() (string, error) {
+			return "fail", ErrNotAllowed
 		})
 
-		fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
+		fmt.Printf("Result=\"%s\" Error=\"%v\" Success=%d Failure=%d\n", res, err, noz.SuccessRate(), noz.FailureRate())
 	}
 
 	for range 2 {
-		noz.DoError(func() error {
-			return nil
+		res, err := noz.DoError(func() (string, error) {
+			return "succeed", nil
 		})
 
-		fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
+		fmt.Printf("Result=\"%s\" Error=\"%v\" Success=%d Failure=%d\n", res, err, noz.SuccessRate(), noz.FailureRate())
 	}
 
 	// Output:
 	// Success=100 Failure=0
-	// Success=0 Failure=100
-	// Success=0 Failure=100
-	// Success=34 Failure=66
-	// Success=50 Failure=50
+	// Result="fail" Error="not allowed" Success=0 Failure=100
+	// Result="fail" Error="not allowed" Success=0 Failure=100
+	// Result="succeed" Error="<nil>" Success=34 Failure=66
+	// Result="succeed" Error="<nil>" Success=50 Failure=50
 }
 
 func ExampleNozzle_State() {
-	noz := nozzle.New(nozzle.Options{
+	type example struct {
+		name string
+	}
+
+	noz := nozzle.New[*example](nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 0,
 	})
@@ -96,37 +100,43 @@ func ExampleNozzle_State() {
 	fmt.Println(noz.State())
 
 	// Simulate some operations
-	noz.DoBool(func() bool {
-		return false
+	res, _ := noz.DoBool(func() (*example, bool) {
+		return &example{name: "failed bool"}, false
 	})
+
+	fmt.Printf("Result=%v\n", res.name)
 
 	noz.Wait()
 
 	fmt.Println(noz.State())
 
-	noz.DoBool(func() bool {
-		return true
+	res, _ = noz.DoBool(func() (*example, bool) {
+		return &example{name: "succeed bool"}, true
 	})
+
+	fmt.Printf("Result=%v\n", res.name)
 
 	noz.Wait()
 
 	fmt.Println(noz.State())
 	// Output:
 	// opening
+	// Result=failed bool
 	// closing
+	// Result=succeed bool
 	// opening
 }
 
 func ExampleNozzle_FlowRate() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[any](nozzle.Options{
 		Interval:              time.Millisecond * 50,
 		AllowedFailurePercent: 10,
 	})
 
 	for range 7 {
 		for range 10 {
-			noz.DoBool(func() bool {
-				return false
+			noz.DoBool(func() (any, bool) {
+				return nil, false
 			})
 		}
 
@@ -136,8 +146,8 @@ func ExampleNozzle_FlowRate() {
 
 	for range 7 {
 		for range 10 {
-			noz.DoBool(func() bool {
-				return true
+			noz.DoBool(func() (any, bool) {
+				return nil, true
 			})
 		}
 
@@ -163,14 +173,14 @@ func ExampleNozzle_FlowRate() {
 }
 
 func ExampleNozzle_Wait() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[map[string]any](nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
 
 	for range 2 {
-		noz.DoBool(func() bool {
-			return false
+		noz.DoBool(func() (map[string]any, bool) {
+			return nil, false
 		})
 	}
 
@@ -186,7 +196,7 @@ func ExampleNozzle_Wait() {
 }
 
 func ExampleOptions_OnStateChange() {
-	noz := nozzle.New(nozzle.Options{
+	noz := nozzle.New[[]string](nozzle.Options{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(s nozzle.State) {
@@ -195,16 +205,16 @@ func ExampleOptions_OnStateChange() {
 	})
 
 	for range 10 {
-		noz.DoBool(func() bool {
-			return false
+		noz.DoBool(func() ([]string, bool) {
+			return nil, false
 		})
 	}
 
 	noz.Wait()
 
 	for range 100 {
-		noz.DoBool(func() bool {
-			return true
+		noz.DoBool(func() ([]string, bool) {
+			return nil, true
 		})
 	}
 
