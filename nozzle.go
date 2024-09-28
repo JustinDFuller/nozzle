@@ -340,10 +340,6 @@ func (n *Nozzle[T]) calculate() {
 // close reduces the flow rate and increases the multiplier to speed up the closing process.
 // It is called when the failure rate exceeds the allowed threshold.
 func (n *Nozzle[T]) close() {
-	if n.flowRate == 0 {
-		return
-	}
-
 	mult := n.decreaseBy
 	if mult > -1 {
 		mult = -1
