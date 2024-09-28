@@ -12,9 +12,9 @@ import (
 //
 // Example:
 //
-//	err := n.DoError(func() error {
-//		err := someFuncThatCanFail()
-//		return err
+//	_, err := n.DoError(func() (any, error) {
+//		res, err := someFuncThatCanFail()
+//		return res, err
 //	})
 //
 //	if errors.Is(err, nozzle.ErrBlocked) {
@@ -74,6 +74,7 @@ type Nozzle[T any] struct {
 
 	// ticker is a channel used to signal the occurrence of a new tick.
 	// Example: It allows other parts of the code to react to time-based events, such as triggering a status update.
+	// See nozzle.Wait() for usage and nozzle.Calculate() for where it is called.
 	ticker chan struct{}
 }
 
@@ -103,6 +104,15 @@ type Options[T any] struct {
 
 	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
 	// This function will be called at most once per Interval.
+	// It receives a Nozzle as an argument, which you can then call to get information about the state of the Nozzle.
+	//
+	// Example:
+	//
+	//	nozzle.Options[*example]{
+	//		OnStateChange(n *nozzle.Nozzle[*example]) {
+	//			fmt.Printf("State=%s\n", n.State())
+	//		},
+	//	}
 	OnStateChange func(*Nozzle[T])
 }
 
@@ -132,7 +142,7 @@ const (
 //
 // Example:
 //
-//	nozzle.New(nozzle.Options{
+//	nozzle.New(nozzle.Options[any]{
 //		Interval: time.Second,
 //		AllowedFailurePercent: 50,
 //	})
@@ -226,14 +236,17 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 //
 // Example:
 //
-//	var n nozzle.Nozzle
+//	var n nozzle.Nozzle[*example]
 //
-//	if err := n.DoError(func() error {
-//		err := someFuncThatCanFail()
-//		return err
-//	}); err != nil {
+//	res, err := n.DoError(func() (*example, error) {
+//		ex, err := someFuncThatCanFail()
+//		return ex, err
+//	})
+//	if err != nil {
 //		// handle error
 //	}
+//
+//	fmt.Print(res) // Use the result
 //
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
 func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {

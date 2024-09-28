@@ -195,7 +195,7 @@ func ExampleNozzle_Wait() {
 	// State After Wait = closing
 }
 
-func ExampleOptions_OnStateChange() {
+func ExampleOptions() {
 	noz := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
