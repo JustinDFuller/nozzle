@@ -28,6 +28,7 @@ var ErrBlocked = errors.New("nozzle: blocked")
 
 // Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
 // It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
+// The Nozzle implements io.Closer for resource cleanup.
 // see nozzle.New docs for how to create a Nozzle.
 // see nozzle.Options docs for how to modify a Nozzle's behavior.
 type Nozzle[T any] struct {
@@ -76,6 +77,15 @@ type Nozzle[T any] struct {
 	// Example: It allows other parts of the code to react to time-based events, such as triggering a status update.
 	// See nozzle.Wait() for usage and nozzle.Calculate() for where it is called.
 	ticker chan struct{}
+
+	// done is a channel used to signal the ticker goroutine to stop.
+	done chan struct{}
+
+	// timeTicker stores the time.Ticker reference for proper cleanup.
+	timeTicker *time.Ticker
+
+	// once ensures that Close() is idempotent.
+	once sync.Once
 }
 
 // Options controls the behavior of the Nozzle.
@@ -137,22 +147,28 @@ const (
 // A Nozzle begins with no errors.
 // A Nozzle is safe for use by multiple goroutines.
 //
+// The returned Nozzle must be closed with Close() when no longer needed to prevent goroutine leaks.
+//
 // The Nozzle contains a mutex, so it must not be copied after first creation.
 // If you do, you will receive an error from `go vet`.
 //
 // Example:
 //
-//	nozzle.New(nozzle.Options[any]{
+//	n := nozzle.New(nozzle.Options[any]{
 //		Interval: time.Second,
 //		AllowedFailurePercent: 50,
 //	})
+//	defer n.Close() // Important: prevents goroutine leak
 //
 // See docs of nozzle.Options for details about each Option field.
 func New[T any](options Options[T]) *Nozzle[T] {
 	n := Nozzle[T]{
-		flowRate: 100,
-		Options:  options,
-		state:    Opening,
+		flowRate:   100,
+		Options:    options,
+		state:      Opening,
+		ticker:     make(chan struct{}, 1),
+		done:       make(chan struct{}),
+		timeTicker: time.NewTicker(options.Interval),
 	}
 
 	go n.tick()
@@ -163,9 +179,37 @@ func New[T any](options Options[T]) *Nozzle[T] {
 // tick periodically invokes the calculate method based on the Nozzle's interval.
 // It ensures the Nozzle processes its state updates at regular intervals.
 func (n *Nozzle[T]) tick() {
-	for range time.Tick(n.Options.Interval) {
-		n.calculate()
+	for {
+		select {
+		case <-n.timeTicker.C:
+			n.calculate()
+		case <-n.done:
+			return
+		}
 	}
+}
+
+// Close gracefully shuts down the Nozzle and releases all resources.
+// It stops the internal ticker goroutine and can be called multiple times safely.
+// Once closed, the Nozzle should not be used for any operations.
+//
+// Close is idempotent - calling it multiple times has no additional effect.
+//
+// Example:
+//
+//	n := nozzle.New(nozzle.Options[any]{
+//		Interval: time.Second,
+//		AllowedFailurePercent: 50,
+//	})
+//	defer n.Close() // Ensure cleanup
+//
+//	// Use the nozzle...
+func (n *Nozzle[T]) Close() error {
+	n.once.Do(func() {
+		close(n.done)
+		n.timeTicker.Stop()
+	})
+	return nil
 }
 
 // DoBool executes a callback function while respecting the Nozzle's state.

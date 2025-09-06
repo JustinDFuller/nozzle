@@ -233,3 +233,25 @@ func ExampleOptions() {
 	// Success Rate: 100
 	// Flow Rate: 100
 }
+
+func ExampleNozzle_Close() {
+	// Create a nozzle
+	n := nozzle.New(nozzle.Options[string]{
+		Interval:              time.Second,
+		AllowedFailurePercent: 50,
+	})
+
+	// Important: Always close the nozzle when done to prevent goroutine leaks
+	defer n.Close()
+
+	// Use the nozzle for operations
+	result, ok := n.DoBool(func() (string, bool) {
+		return "Hello, World!", true
+	})
+
+	fmt.Printf("Result: %s, OK: %v\n", result, ok)
+
+	// The deferred Close() will be called when the function exits
+	// Output:
+	// Result: Hello, World!, OK: true
+}
