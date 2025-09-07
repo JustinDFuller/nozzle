@@ -316,7 +316,11 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
-	defer noz.Close()
+	t.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	if fr := noz.FlowRate(); fr != 100 {
 		t.Fatalf("Expected FlowRate=100 but got %d", fr)
@@ -384,7 +388,11 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
-	defer noz.Close()
+	t.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	if fr := noz.FlowRate(); fr != 100 {
 		t.Fatalf("Expected FlowRate=100 but got %d", fr)
@@ -411,13 +419,17 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 			var calls int
 
 			for range 1000 {
-				noz.DoError(func() (any, error) {
+				_, err := noz.DoError(func() (any, error) {
 					calls++
 
 					err := act.do()
 
 					return nil, err
 				})
+				// Both ErrBlocked and ErrNotAllowed are expected in flow control testing
+				if err != nil && !errors.Is(err, nozzle.ErrBlocked) && !errors.Is(err, ErrNotAllowed) {
+					t.Errorf("Unexpected error: %v", err)
+				}
 			}
 
 			if expected := int(1000 * (float64(second.flowRate) / 100)); calls-expected > 1 || calls-expected < -1 {

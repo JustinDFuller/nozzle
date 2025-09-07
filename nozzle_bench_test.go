@@ -1,6 +1,7 @@
 package nozzle_test
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -9,7 +10,11 @@ import (
 
 func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(b.N)
 
@@ -24,7 +29,11 @@ func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 
 func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(0)
 
@@ -39,7 +48,11 @@ func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 
 func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(b.N / 2)
 
@@ -54,46 +67,73 @@ func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 
 func BenchmarkNozzle_DoError_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(b.N)
 
 	for i := 0; i < b.N; i++ {
-		noz.DoError(func() (any, error) {
+		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
 			return nil, err
 		})
+		// In benchmarks, we expect both ErrBlocked and actual errors from act.do()
+		// Both are valid outcomes for flow control testing
+		if err != nil && !errors.Is(err, nozzle.ErrBlocked) && !errors.Is(err, ErrNotAllowed) {
+			b.Fatalf("Unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(0)
 
 	for i := 0; i < b.N; i++ {
-		noz.DoError(func() (any, error) {
+		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
 			return nil, err
 		})
+		// In benchmarks, we expect both ErrBlocked and actual errors from act.do()
+		// Both are valid outcomes for flow control testing
+		if err != nil && !errors.Is(err, nozzle.ErrBlocked) && !errors.Is(err, ErrNotAllowed) {
+			b.Fatalf("Unexpected error: %v", err)
+		}
 	}
 }
 
 func BenchmarkNozzle_DoError_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
-	defer noz.Close()
+	b.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			b.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	act := newActor(b.N / 2)
 
 	for i := 0; i < b.N; i++ {
-		noz.DoError(func() (any, error) {
+		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
 			return nil, err
 		})
+		// In benchmarks, we expect both ErrBlocked and actual errors from act.do()
+		// Both are valid outcomes for flow control testing
+		if err != nil && !errors.Is(err, nozzle.ErrBlocked) && !errors.Is(err, ErrNotAllowed) {
+			b.Fatalf("Unexpected error: %v", err)
+		}
 	}
 }
 

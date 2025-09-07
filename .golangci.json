@@ -1,4 +1,5 @@
 {
+    "version": "2",
     "run": {
         "go": "1.23.1",
         "modules-download-mode": "readonly"
@@ -11,8 +12,7 @@
     "linters": {
         "enable-all": true,
         "disable": [
-            "gomnd",
-            "execinquery",
+            "mnd",
             "lll",
             "exhaustruct",
             "funlen",
@@ -22,7 +22,6 @@
             "dupl",
             "ireturn",
             "nilnil",
-            "exportloopref",
             "testableexamples"
         ]
     },

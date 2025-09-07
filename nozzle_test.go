@@ -76,7 +76,11 @@ func TestConcurrencyBool(t *testing.T) {
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
-	defer noz.Close()
+	t.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	var mut sync.Mutex
 	var last int
@@ -127,7 +131,11 @@ func TestConcurrencyError(t *testing.T) {
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
-	defer noz.Close()
+	t.Cleanup(func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	})
 
 	var mut sync.Mutex
 	var last int
@@ -137,7 +145,7 @@ func TestConcurrencyError(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		noz.DoError(func() (any, error) {
+		_, err := noz.DoError(func() (any, error) {
 			defer wg.Done()
 
 			time.Sleep(10 * time.Millisecond)
@@ -149,10 +157,13 @@ func TestConcurrencyError(t *testing.T) {
 
 			return nil, nil
 		})
+		if err != nil && !errors.Is(err, ErrBlocked) {
+			t.Errorf("Unexpected error in goroutine 1: %v", err)
+		}
 	}()
 
 	go func() {
-		noz.DoError(func() (any, error) {
+		_, err := noz.DoError(func() (any, error) {
 			defer wg.Done()
 
 			mut.Lock()
@@ -162,6 +173,9 @@ func TestConcurrencyError(t *testing.T) {
 
 			return nil, nil
 		})
+		if err != nil && !errors.Is(err, ErrBlocked) {
+			t.Errorf("Unexpected error in goroutine 2: %v", err)
+		}
 	}()
 
 	wg.Wait()
