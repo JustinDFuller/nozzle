@@ -190,8 +190,10 @@ func TestConcurrencyError(t *testing.T) {
 }
 
 // TestNozzleNoGoroutineLeak ensures that closing nozzles properly cleans up goroutines.
-func TestNozzleNoGoroutineLeak(t *testing.T) {
-	t.Parallel()
+// This test must not run in parallel because it measures global goroutine counts,
+// which can be affected by other tests running concurrently.
+func TestNozzleNoGoroutineLeak(t *testing.T) { //nolint:paralleltest // This test measures global goroutine counts
+	// Intentionally not using t.Parallel() to avoid interference from other tests
 
 	// Get baseline goroutine count
 	runtime.GC()
