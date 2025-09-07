@@ -1,18 +1,16 @@
 {
+    "version": "2",
     "run": {
         "go": "1.23.1",
         "modules-download-mode": "readonly"
     },
     "output": {
-        "sort-results": true,
-        "sort-order": ["file"],
-        "show-stats": true
+        "show-stats": true,
+        "sort-order": ["file"]
     },
     "linters": {
-        "enable-all": true,
+        "default": "all",
         "disable": [
-            "gomnd",
-            "execinquery",
             "lll",
             "exhaustruct",
             "funlen",
@@ -22,48 +20,45 @@
             "dupl",
             "ireturn",
             "nilnil",
-            "exportloopref",
-            "testableexamples"
-        ]
+            "testableexamples",
+            "noinlineerr",
+            "wsl"
+        ],
+        "settings": {
+            "depguard": {
+                "rules": {
+                    "main": {
+                        "allow": [
+                            "$gostd",
+                            "github.com/justindfuller/nozzle",
+                            "golang.org/x/time/rate"
+                        ]
+                    }
+                }
+            },
+            "wsl_v5": {
+                "allow-first-in-block": true,
+                "allow-whole-block": false,
+                "branch-max-lines": 2
+            },
+            "mnd": {
+                "ignored-numbers": [
+                    "0",
+                    "100",
+                    "2"
+                ]
+            },
+            "varnamelen": {
+                "max-distance": 20,
+                "ignore-decls": [
+                    "wg sync.WaitGroup"
+                ]
+            }
+        }
     },
     "issues": {
         "fix": false,
         "max-issues-per-linter": 0,
-        "max-same-issues": 0,
-        "exclude-rules": [
-          {
-            "linters": ["errcheck"],
-            "text": "Error return value of `noz.DoError` is not checked"
-          }
-        ]
-    },
-    "linters-settings": {
-        "wsl": {
-          "allow-cuddle-declarations": true
-        },
-        "mnd": {
-            "ignored-numbers": [
-                "0",
-                "100",
-                "2"
-            ]
-        },
-        "varnamelen": {
-            "max-distance": 20,
-            "ignore-decls": [
-              "wg sync.WaitGroup"
-            ]
-        },
-        "depguard": {
-            "rules": {
-                "main": {
-                    "allow": [
-                        "$gostd",
-                        "github.com/justindfuller/nozzle",
-                        "golang.org/x/time/rate"
-                    ]
-                }
-            }
-        }
+        "max-same-issues": 0
     }
 }

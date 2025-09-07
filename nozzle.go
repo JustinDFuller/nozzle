@@ -1,3 +1,7 @@
+// Package nozzle provides a gradual flow control mechanism (alternative to circuit breaker)
+// that adjusts the rate of allowed operations based on success and failure rates.
+// Unlike circuit breakers that operate in binary states (open/closed), the nozzle
+// gradually opens and closes like a hose nozzle, providing more nuanced flow control.
 package nozzle
 
 import (
@@ -358,7 +362,6 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	n.mut.Unlock()
 
 	res, err := callback()
-
 	if err != nil {
 		n.failure()
 	} else {
