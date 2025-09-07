@@ -175,50 +175,6 @@ After closing:
 
 As you can see, this package uses generics. This allows the Nozzle's methods to return the same type as the function you pass to it. This allows the Nozzle to perform its work without interrupting the control-flow of your application.
 
-## Migration Guide (v1 to v2)
-
-### Breaking Change: OnStateChange Callback
-
-The `OnStateChange` callback signature has changed to fix a critical race condition. The new API provides an immutable `StateSnapshot` instead of a direct reference to the `Nozzle`.
-
-#### Old API (v1.x)
-```go
-OnStateChange: func(noz *nozzle.Nozzle[string]) {
-    // Potential race condition: mutex unlocked during callback
-    fmt.Printf("Flow rate: %d%%\n", noz.FlowRate())
-    fmt.Printf("State: %s\n", noz.State())
-}
-```
-
-#### New API (v2.x)
-```go
-OnStateChange: func(snapshot nozzle.StateSnapshot) {
-    // Thread-safe: immutable snapshot with no lock contention
-    fmt.Printf("Flow rate: %d%%\n", snapshot.FlowRate)
-    fmt.Printf("State: %s\n", snapshot.State)
-}
-```
-
-#### Migration Steps
-
-1. **Update callback signature** from `func(*Nozzle[T])` to `func(StateSnapshot)`
-2. **Replace method calls with field access**:
-   - `noz.FlowRate()` → `snapshot.FlowRate`
-   - `noz.State()` → `snapshot.State`
-   - `noz.FailureRate()` → `snapshot.FailureRate`
-   - `noz.SuccessRate()` → `snapshot.SuccessRate`
-3. **Access new cumulative counters** (not available in v1):
-   - `snapshot.Allowed` - total operations allowed
-   - `snapshot.Blocked` - total operations blocked
-
-#### Benefits of the New API
-
-- **Eliminates race conditions** - No mutex unlocking during callback execution
-- **Atomic state view** - All fields represent the same instant in time
-- **Better performance** - No lock contention between callback and operations
-- **Zero allocations** - StateSnapshot is passed by value
-- **Additional metrics** - Access to cumulative counters
-
 ## Observability
 
 You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occurred.
@@ -255,173 +211,6 @@ nozzle.New(nozzle.Options[*example]{
 }
 ```
 
-### Real-World Examples
-
-#### Prometheus Metrics Integration
-
-```go
-var (
-    nozzleFlowRate = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nozzle_flow_rate",
-            Help: "Current flow rate percentage (0-100)",
-        },
-        []string{"service"},
-    )
-    nozzleFailureRate = prometheus.NewGaugeVec(
-        prometheus.GaugeOpts{
-            Name: "nozzle_failure_rate",
-            Help: "Current failure rate percentage (0-100)",
-        },
-        []string{"service"},
-    )
-    nozzleStateChanges = prometheus.NewCounterVec(
-        prometheus.CounterOpts{
-            Name: "nozzle_state_changes_total",
-            Help: "Total number of state changes",
-        },
-        []string{"service", "state"},
-    )
-)
-
-noz := nozzle.New(nozzle.Options[*Response]{
-    Interval:              time.Second,
-    AllowedFailurePercent: 30,
-    OnStateChange: func(snapshot nozzle.StateSnapshot) {
-        serviceName := "api-gateway"
-        
-        nozzleFlowRate.WithLabelValues(serviceName).Set(float64(snapshot.FlowRate))
-        nozzleFailureRate.WithLabelValues(serviceName).Set(float64(snapshot.FailureRate))
-        nozzleStateChanges.WithLabelValues(serviceName, string(snapshot.State)).Inc()
-        
-        // Track cumulative stats
-        prometheus.NewGauge(prometheus.GaugeOpts{
-            Name: "nozzle_total_allowed",
-        }).Set(float64(snapshot.Allowed))
-        
-        prometheus.NewGauge(prometheus.GaugeOpts{
-            Name: "nozzle_total_blocked",
-        }).Set(float64(snapshot.Blocked))
-    },
-})
-```
-
-#### Alerting Integration
-
-```go
-type AlertManager struct {
-    client *alerting.Client
-}
-
-noz := nozzle.New(nozzle.Options[*Result]{
-    Interval:              5 * time.Second,
-    AllowedFailurePercent: 25,
-    OnStateChange: func(snapshot nozzle.StateSnapshot) {
-        switch {
-        case snapshot.FlowRate == 0:
-            // Critical: Circuit fully closed
-            go alertManager.SendCritical(
-                "Service completely blocked",
-                map[string]interface{}{
-                    "flow_rate":    snapshot.FlowRate,
-                    "failure_rate": snapshot.FailureRate,
-                    "blocked_ops":  snapshot.Blocked,
-                },
-            )
-            
-        case snapshot.FlowRate < 25:
-            // Warning: Severe throttling
-            go alertManager.SendWarning(
-                fmt.Sprintf("Service severely throttled at %d%%", snapshot.FlowRate),
-                map[string]interface{}{
-                    "flow_rate":    snapshot.FlowRate,
-                    "failure_rate": snapshot.FailureRate,
-                },
-            )
-            
-        case snapshot.State == nozzle.Closing && snapshot.FlowRate < 50:
-            // Info: Service degrading
-            go alertManager.SendInfo(
-                "Service entering degraded state",
-                map[string]interface{}{
-                    "flow_rate":    snapshot.FlowRate,
-                    "state":        snapshot.State,
-                },
-            )
-        }
-    },
-})
-```
-
-#### Testing with StateSnapshot
-
-```go
-func TestNozzleStateChanges(t *testing.T) {
-    var snapshots []nozzle.StateSnapshot
-    var mu sync.Mutex
-    
-    noz := nozzle.New(nozzle.Options[string]{
-        Interval:              100 * time.Millisecond,
-        AllowedFailurePercent: 50,
-        OnStateChange: func(snapshot nozzle.StateSnapshot) {
-            mu.Lock()
-            snapshots = append(snapshots, snapshot)
-            mu.Unlock()
-        },
-    })
-    defer noz.Close()
-    
-    // Simulate failures to trigger closing
-    for i := 0; i < 100; i++ {
-        noz.DoBool(func() (string, bool) {
-            return "test", false // All failures
-        })
-    }
-    
-    // Wait for state calculation
-    time.Sleep(200 * time.Millisecond)
-    
-    // Verify state changed to closing
-    mu.Lock()
-    defer mu.Unlock()
-    
-    require.NotEmpty(t, snapshots, "Expected state changes")
-    lastSnapshot := snapshots[len(snapshots)-1]
-    
-    assert.Equal(t, nozzle.Closing, lastSnapshot.State)
-    assert.Less(t, lastSnapshot.FlowRate, int64(100))
-    assert.Greater(t, lastSnapshot.FailureRate, int64(50))
-}
-```
-
-#### Distributed Tracing Integration
-
-```go
-noz := nozzle.New(nozzle.Options[*Response]{
-    Interval:              time.Second,
-    AllowedFailurePercent: 40,
-    OnStateChange: func(snapshot nozzle.StateSnapshot) {
-        // Add state change as a trace event
-        span := opentracing.StartSpan("nozzle.state_change")
-        defer span.Finish()
-        
-        span.SetTag("flow_rate", snapshot.FlowRate)
-        span.SetTag("state", snapshot.State)
-        span.SetTag("failure_rate", snapshot.FailureRate)
-        span.SetTag("success_rate", snapshot.SuccessRate)
-        
-        if snapshot.FlowRate < 50 {
-            span.SetTag("alert", "degraded")
-            span.LogKV(
-                "event", "flow_restricted",
-                "flow_rate", snapshot.FlowRate,
-                "blocked_total", snapshot.Blocked,
-            )
-        }
-    },
-})
-```
-
 ## Performance
 
 The performance is excellent. 0 bytes per operation, 0 allocations per operation. It works with concurrent goroutines without any race conditions.
@@ -442,15 +231,6 @@ BenchmarkNozzle_DoBool_Control-2         1292871             960.8 ns/op        
 PASS
 ok      github.com/justindfuller/nozzle 11.410s
 ```
-
-### StateSnapshot Performance
-
-The `StateSnapshot` approach maintains zero allocations while providing additional benefits:
-
-- **Zero Allocations**: StateSnapshot is a value type copied by value
-- **No Lock Contention**: Callback execution doesn't block nozzle operations
-- **Atomic State View**: All state fields reflect the same point in time
-- **Reduced Latency**: No mutex acquisition during callback execution
 
 ## Thread Safety
 
@@ -475,46 +255,12 @@ for i := 0; i < 100; i++ {
 wg.Wait()
 ```
 
-### StateSnapshot Pattern
-
-The `StateSnapshot` eliminates race conditions in callbacks:
-
-```go
-// Thread-Safe (Recommended)
-OnStateChange: func(snapshot nozzle.StateSnapshot) {
-    // All fields are immutable and safe to access
-    // No locks required, no race conditions possible
-    processMetrics(snapshot.FlowRate, snapshot.FailureRate)
-}
-```
-
-Compare with direct method calls which acquire locks:
-
-```go
-// Thread-Safe but may cause lock contention
-currentRate := noz.FlowRate() // Acquires mutex
-currentState := noz.State()   // Acquires mutex again
-// Note: These values may be from different points in time
-```
-
 ### Callback Execution Guarantees
 
 - Callbacks are called **sequentially** (never concurrently)
 - Callbacks are called **at most once per interval**
 - Panics in callbacks are recovered and don't affect nozzle operation
 - Long-running callbacks may delay subsequent state calculations
-
-### Best Practices
-
-1. **Use StateSnapshot in callbacks** - Avoids lock contention
-2. **Keep callbacks fast** - Queue heavy work for async processing
-3. **Always call Close()** - Ensures proper resource cleanup
-4. **Use defer for cleanup** - Guarantees Close() is called
-
-```go
-noz := nozzle.New(options)
-defer noz.Close() // Always clean up resources
-```
 
 ## Documentation
 
