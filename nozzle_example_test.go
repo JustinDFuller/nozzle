@@ -14,8 +14,7 @@ func ExampleNew() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -38,8 +37,7 @@ func ExampleNozzle_DoBool() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -77,8 +75,7 @@ func ExampleNozzle_DoError() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -120,8 +117,7 @@ func ExampleNozzle_State() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -163,8 +159,7 @@ func ExampleNozzle_FlowRate() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -215,8 +210,7 @@ func ExampleNozzle_Wait() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -251,8 +245,7 @@ func ExampleOptions() {
 	})
 
 	defer func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()
@@ -295,8 +288,7 @@ func Example_cleanup() {
 
 	// Always close the nozzle when done
 	defer func() {
-		err := n.Close()
-		if err != nil {
+		if err := n.Close(); err != nil {
 			fmt.Printf("Error closing nozzle: %v\n", err)
 		}
 	}()

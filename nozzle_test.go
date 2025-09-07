@@ -78,8 +78,7 @@ func TestConcurrencyBool(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -137,8 +136,7 @@ func TestConcurrencyError(t *testing.T) {
 	})
 
 	t.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -223,8 +221,7 @@ func TestNozzleNoGoroutineLeak(t *testing.T) {
 
 	// Close all nozzles
 	for _, n := range nozzles {
-		err := n.Close()
-		if err != nil {
+		if err := n.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	}
@@ -252,8 +249,7 @@ func TestCloseIdempotent(t *testing.T) {
 
 	// Call Close multiple times
 	for i := range 5 {
-		err := n.Close()
-		if err != nil {
+		if err := n.Close(); err != nil {
 			t.Errorf("Close() call %d returned error: %v", i, err)
 		}
 	}
@@ -276,8 +272,7 @@ func TestConcurrentClose(t *testing.T) {
 		go func() {
 			defer wg.Done()
 
-			err := n.Close()
-			if err != nil {
+			if err := n.Close(); err != nil {
 				t.Errorf("Concurrent Close() returned error: %v", err)
 			}
 		}()

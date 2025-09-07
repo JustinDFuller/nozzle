@@ -12,8 +12,7 @@ func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -33,8 +32,7 @@ func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -54,8 +52,7 @@ func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -75,8 +72,7 @@ func BenchmarkNozzle_DoError_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -101,8 +97,7 @@ func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -127,8 +122,7 @@ func BenchmarkNozzle_DoError_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
 
 	b.Cleanup(func() {
-		err := noz.Close()
-		if err != nil {
+		if err := noz.Close(); err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
