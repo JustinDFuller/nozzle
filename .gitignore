@@ -26,3 +26,7 @@ go.work.sum
 
 # Planning documents
 PLAN.md
+
+# Claude Code configuration
+CLAUDE.md
+.claude/
