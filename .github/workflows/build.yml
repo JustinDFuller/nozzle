@@ -30,9 +30,9 @@ jobs:
       run: go vet ./...
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v6
+      uses: golangci/golangci-lint-action@v7
       with:
-        version: v1.60
+        version: v2.2.2
 
     - uses: gwatts/go-coverage-action@v2
       id: coverage
