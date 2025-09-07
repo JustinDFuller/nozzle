@@ -287,6 +287,7 @@ func TestOperationsAfterClose(t *testing.T) {
 	if ok {
 		t.Error("DoBool should return false for closed nozzle")
 	}
+
 	if result != nil {
 		t.Errorf("DoBool should return zero value for closed nozzle, got: %v", result)
 	}
@@ -300,6 +301,7 @@ func TestOperationsAfterClose(t *testing.T) {
 	if !errors.Is(err, ErrClosed) {
 		t.Errorf("DoError should return ErrClosed for closed nozzle, got: %v", err)
 	}
+
 	if result2 != nil {
 		t.Errorf("DoError should return zero value for closed nozzle, got: %v", result2)
 	}

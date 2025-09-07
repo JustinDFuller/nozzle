@@ -12,6 +12,7 @@ func ExampleNew() {
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 	fmt.Printf("FlowRate=%d\n", noz.FlowRate())
 	fmt.Printf("SuccessRate=%d\n", noz.SuccessRate())
 	fmt.Printf("FailureRate=%d\n", noz.FailureRate())
@@ -28,6 +29,7 @@ func ExampleNozzle_DoBool() {
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 
 	fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
 
@@ -60,6 +62,7 @@ func ExampleNozzle_DoError() {
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 
 	fmt.Printf("Success=%d Failure=%d\n", noz.SuccessRate(), noz.FailureRate())
 
@@ -96,6 +99,7 @@ func ExampleNozzle_State() {
 		Interval:              time.Second,
 		AllowedFailurePercent: 0,
 	})
+	defer noz.Close()
 
 	fmt.Println(noz.State())
 
@@ -132,6 +136,7 @@ func ExampleNozzle_FlowRate() {
 		Interval:              time.Millisecond * 50,
 		AllowedFailurePercent: 10,
 	})
+	defer noz.Close()
 
 	for range 7 {
 		for range 10 {
@@ -177,6 +182,7 @@ func ExampleNozzle_Wait() {
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 
 	for range 2 {
 		noz.DoBool(func() (map[string]any, bool) {
@@ -206,6 +212,7 @@ func ExampleOptions() {
 			fmt.Printf("Flow Rate: %d\n", n.FlowRate())
 		},
 	})
+	defer noz.Close()
 
 	for range 10 {
 		noz.DoBool(func() ([]string, bool) {
@@ -243,7 +250,7 @@ func Example_cleanup() {
 		AllowedFailurePercent: 50,
 	})
 
-	// Important: Always close the nozzle when done to prevent goroutine leaks
+	// Always close the nozzle when done
 	defer n.Close()
 
 	// Use the nozzle for operations

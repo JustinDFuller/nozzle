@@ -166,7 +166,7 @@ const (
 //		Interval: time.Second,
 //		AllowedFailurePercent: 50,
 //	})
-//	defer n.Close() // Important: prevents goroutine leak
+//	defer n.Close()
 //
 // See docs of nozzle.Options for details about each Option field.
 func New[T any](options Options[T]) *Nozzle[T] {

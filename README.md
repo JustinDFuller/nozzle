@@ -89,7 +89,7 @@ func main() {
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
-    defer n.Close() // Important: prevents goroutine leak
+    defer n.Close()
 
     for i := 0; i < 1000; i++ {
         res, err := n.DoError(func() (*http.Response, error) {
@@ -126,7 +126,7 @@ func main() {
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
-    defer n.Close() // Important: prevents goroutine leak
+    defer n.Close()
 
     for i := 0; i < 1000; i++ {
         res, ok := n.DoBool(func() (*http.Response, bool) {
@@ -154,7 +154,7 @@ n := nozzle.New(nozzle.Options[any]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
 })
-defer n.Close() // Important: prevents goroutine leak
+defer n.Close()
 
 // Use the nozzle...
 ```
