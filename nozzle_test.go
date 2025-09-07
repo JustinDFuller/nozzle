@@ -277,19 +277,29 @@ func TestOperationsAfterClose(t *testing.T) {
 	// Wait a bit to ensure close completes
 	time.Sleep(100 * time.Millisecond)
 
-	// Try operations after close - they should not panic
+	// Test DoBool after close - should return (zero value, false)
 	result, ok := nozzle.DoBool(func() (any, bool) {
+		t.Error("Callback should not be called on closed nozzle")
 		return "test", true
 	})
-	// We don't assert on the result as behavior after close is undefined,
-	// but it should not panic
-	_ = result
-	_ = ok
+	
+	if ok {
+		t.Error("DoBool should return false for closed nozzle")
+	}
+	if result != nil {
+		t.Errorf("DoBool should return zero value for closed nozzle, got: %v", result)
+	}
 
+	// Test DoError after close - should return (zero value, ErrClosed)
 	result2, err := nozzle.DoError(func() (any, error) {
+		t.Error("Callback should not be called on closed nozzle")
 		return "test", nil
 	})
-	// Again, just ensure no panic
-	_ = result2
-	_ = err
+	
+	if err != ErrClosed {
+		t.Errorf("DoError should return ErrClosed for closed nozzle, got: %v", err)
+	}
+	if result2 != nil {
+		t.Errorf("DoError should return zero value for closed nozzle, got: %v", result2)
+	}
 }

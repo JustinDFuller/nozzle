@@ -26,6 +26,11 @@ import (
 //	}
 var ErrBlocked = errors.New("nozzle: blocked")
 
+// ErrClosed is returned when an operation is attempted on a closed Nozzle.
+// After Close() is called, all operations will fail with this error (for DoError)
+// or return false (for DoBool).
+var ErrClosed = errors.New("nozzle: closed")
+
 // Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
 // It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
 // The Nozzle implements io.Closer for resource cleanup.
@@ -86,6 +91,9 @@ type Nozzle[T any] struct {
 
 	// once ensures that Close() is idempotent.
 	once sync.Once
+
+	// closed tracks whether the nozzle has been closed.
+	closed bool
 }
 
 // Options controls the behavior of the Nozzle.
@@ -190,7 +198,12 @@ func (n *Nozzle[T]) tick() {
 
 // Close gracefully shuts down the Nozzle and releases all resources.
 // It stops the internal ticker goroutine and can be called multiple times safely.
-// Once closed, the Nozzle should not be used for any operations.
+//
+// After Close is called:
+//   - DoBool will return (zero value, false) without calling the callback
+//   - DoError will return (zero value, ErrClosed) without calling the callback
+//   - The ticker goroutine will be stopped
+//   - All resources will be released
 //
 // Close is idempotent - calling it multiple times has no additional effect.
 //
@@ -205,6 +218,10 @@ func (n *Nozzle[T]) tick() {
 //	// Use the nozzle...
 func (n *Nozzle[T]) Close() error {
 	n.once.Do(func() {
+		n.mut.Lock()
+		n.closed = true
+		n.mut.Unlock()
+		
 		close(n.done)
 		n.timeTicker.Stop()
 	})
@@ -214,6 +231,8 @@ func (n *Nozzle[T]) Close() error {
 
 // DoBool executes a callback function while respecting the Nozzle's state.
 // It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
+//
+// If the Nozzle is closed, DoBool returns (zero value, false) immediately without calling the callback.
 //
 // The callback function receives no arguments and should return a boolean value.
 // If the callback returns true, the success method will be called, otherwise the failure method will be called.
@@ -227,7 +246,7 @@ func (n *Nozzle[T]) Close() error {
 //		return result, err == nil
 //	})
 //	if !ok {
-//		// handle failure.
+//		// handle failure or closed nozzle.
 //	}
 //
 //	fmt.Println(res) // use res.
@@ -235,6 +254,12 @@ func (n *Nozzle[T]) Close() error {
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
 func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	n.mut.Lock()
+	
+	// Check if nozzle is closed
+	if n.closed {
+		n.mut.Unlock()
+		return *new(T), false
+	}
 
 	var allowRate int64
 
@@ -275,6 +300,8 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 // DoError executes a callback function while respecting the Nozzle's state.
 // It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
 //
+// If the Nozzle is closed, DoError returns (zero value, ErrClosed) immediately without calling the callback.
+//
 // The callback function receives no arguments and should return an error.
 // If the callback returns nil, the success method will be called. If the callback returns an error, the failure method will be called.
 //
@@ -286,8 +313,10 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 //		ex, err := someFuncThatCanFail()
 //		return ex, err
 //	})
-//	if err != nil {
-//		// handle error
+//	if errors.Is(err, nozzle.ErrClosed) {
+//		// nozzle is closed
+//	} else if err != nil {
+//		// handle other error
 //	}
 //
 //	fmt.Print(res) // Use the result
@@ -295,6 +324,12 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
 func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	n.mut.Lock()
+	
+	// Check if nozzle is closed
+	if n.closed {
+		n.mut.Unlock()
+		return *new(T), ErrClosed
+	}
 
 	var allowRate int64
 
