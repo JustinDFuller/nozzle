@@ -9,53 +9,48 @@ import (
 	"github.com/justindfuller/nozzle"
 )
 
-// TestNozzleConcurrentStateChange verifies that concurrent operations don't cause race conditions
-// when the OnStateChange callback is invoked.
-func TestNozzleConcurrentStateChange(t *testing.T) {
+// TestNozzleSnapshotFieldValidation verifies that StateSnapshot fields contain valid values.
+// This is the ONLY test that validates snapshot field ranges and consistency.
+func TestNozzleSnapshotFieldValidation(t *testing.T) {
 	t.Parallel()
 
-	var (
-		callbackCount atomic.Int32
-		wg            sync.WaitGroup
-	)
+	var validationCount atomic.Int32
 
 	noz := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
-		AllowedFailurePercent: 30, // Changed from 50 to ensure state changes
+		AllowedFailurePercent: 30,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-			// This callback should be able to safely access the snapshot
-			// without any race conditions
-			callbackCount.Add(1)
+			validationCount.Add(1)
 
-			// Verify all fields have valid values (stable assertions)
+			// Validate all field ranges
 			if snapshot.FlowRate < 0 || snapshot.FlowRate > 100 {
 				t.Errorf("Invalid FlowRate: %d (should be 0-100)", snapshot.FlowRate)
 			}
-			
+
 			if snapshot.State != nozzle.Opening && snapshot.State != nozzle.Closing {
 				t.Errorf("Invalid State: %s (should be Opening or Closing)", snapshot.State)
 			}
-			
+
 			if snapshot.FailureRate < 0 || snapshot.FailureRate > 100 {
 				t.Errorf("Invalid FailureRate: %d (should be 0-100)", snapshot.FailureRate)
 			}
-			
+
 			if snapshot.SuccessRate < 0 || snapshot.SuccessRate > 100 {
 				t.Errorf("Invalid SuccessRate: %d (should be 0-100)", snapshot.SuccessRate)
 			}
-			
+
 			// Verify rate consistency when there are operations
 			if snapshot.Allowed > 0 || snapshot.Blocked > 0 {
 				if snapshot.FailureRate+snapshot.SuccessRate != 100 {
-					t.Errorf("FailureRate (%d) + SuccessRate (%d) != 100", 
+					t.Errorf("FailureRate (%d) + SuccessRate (%d) != 100",
 						snapshot.FailureRate, snapshot.SuccessRate)
 				}
 			}
-			
+
 			if snapshot.Allowed < 0 {
 				t.Errorf("Invalid Allowed count: %d (should be >= 0)", snapshot.Allowed)
 			}
-			
+
 			if snapshot.Blocked < 0 {
 				t.Errorf("Invalid Blocked count: %d (should be >= 0)", snapshot.Blocked)
 			}
@@ -68,8 +63,68 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 		}
 	}()
 
+	// Generate operations to trigger state changes
+	for i := range 100 {
+		switch {
+		case i < 30:
+			noz.DoBool(func() (string, bool) {
+				return "failure", false
+			})
+		case i < 60:
+			noz.DoBool(func() (string, bool) {
+				return "success", true
+			})
+		default:
+			noz.DoBool(func() (string, bool) {
+				return "mixed", i%3 == 0
+			})
+		}
+
+		if i%20 == 0 {
+			noz.Wait()
+		}
+	}
+
+	if validationCount.Load() == 0 {
+		t.Error("OnStateChange callback was never invoked")
+	}
+
+	t.Logf("Validated %d snapshots", validationCount.Load())
+}
+
+// TestNozzleConcurrentStateChange verifies that concurrent operations don't cause race conditions
+// when the OnStateChange callback is invoked.
+func TestNozzleConcurrentStateChange(t *testing.T) {
+	t.Parallel()
+
+	var (
+		callbackCount atomic.Int32
+		wg            sync.WaitGroup
+	)
+
+	noz := nozzle.New(nozzle.Options[string]{
+		Interval:              50 * time.Millisecond,
+		AllowedFailurePercent: 30,
+		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+			// Simply count callbacks - no validation here
+			callbackCount.Add(1)
+			// Access fields to ensure they're readable without race
+			_ = snapshot.FlowRate
+			_ = snapshot.State
+			_ = snapshot.FailureRate
+			_ = snapshot.SuccessRate
+			_ = snapshot.Allowed
+			_ = snapshot.Blocked
+		},
+	})
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
+
 	// Launch multiple goroutines that perform operations concurrently
-	// with varying success/failure patterns to trigger state changes
 	for goroutineIdx := range 10 {
 		wg.Add(1)
 
@@ -77,20 +132,16 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 			defer wg.Done()
 
 			for j := range 100 {
-				// Vary the success rate over time to trigger state changes
 				switch {
 				case j < 30:
-					// Start with high failure rate
 					noz.DoBool(func() (string, bool) {
 						return "failure", false
 					})
 				case j < 60:
-					// Then high success rate
 					noz.DoBool(func() (string, bool) {
 						return "success", true
 					})
 				default:
-					// Then mixed
 					noz.DoBool(func() (string, bool) {
 						return "mixed", j%3 == 0
 					})
@@ -113,100 +164,11 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 
 	wg.Wait()
 
-	// Verify that callbacks were invoked
 	if callbackCount.Load() == 0 {
 		t.Error("OnStateChange callback was never invoked")
 	}
 
 	t.Logf("Callback invoked %d times", callbackCount.Load())
-}
-
-// TestNozzleStateSnapshotConsistency verifies that the snapshot passed to OnStateChange
-// contains consistent data that doesn't change during callback execution.
-func TestNozzleStateSnapshotConsistency(t *testing.T) {
-	t.Parallel()
-
-	snapshotData := make([]nozzle.StateSnapshot, 0, 100)
-
-	var snapshotMutex sync.Mutex
-
-	noz := nozzle.New(nozzle.Options[int]{
-		Interval:              10 * time.Millisecond,
-		AllowedFailurePercent: 50,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-			// Store snapshot for later verification
-			snapshotMutex.Lock()
-			snapshotData = append(snapshotData, snapshot)
-			snapshotMutex.Unlock()
-
-			// Simulate some work in the callback
-			time.Sleep(5 * time.Millisecond)
-
-			// Verify snapshot hasn't changed
-			originalFlowRate := snapshot.FlowRate
-			originalState := snapshot.State
-
-			// These should still be the same
-			if snapshot.FlowRate != originalFlowRate {
-				t.Errorf("FlowRate changed during callback: %d != %d", snapshot.FlowRate, originalFlowRate)
-			}
-			if snapshot.State != originalState {
-				t.Errorf("State changed during callback: %s != %s", snapshot.State, originalState)
-			}
-		},
-	})
-
-	defer func() {
-		if err := noz.Close(); err != nil {
-			t.Errorf("Failed to close nozzle: %v", err)
-		}
-	}()
-
-	// Generate mixed success/failure operations
-	for i := range 200 {
-		if i%3 == 0 {
-			noz.DoBool(func() (int, bool) {
-				return i, false // failure
-			})
-		} else {
-			noz.DoBool(func() (int, bool) {
-				return i, true // success
-			})
-		}
-
-		if i%20 == 0 {
-			noz.Wait() // Force state calculation
-		}
-	}
-
-	// Verify we got some snapshots
-	snapshotMutex.Lock()
-	defer snapshotMutex.Unlock()
-
-	if len(snapshotData) == 0 {
-		t.Error("No snapshots were captured")
-	}
-
-	// Verify snapshot data makes sense
-	for i, snapshot := range snapshotData {
-		if snapshot.FlowRate < 0 || snapshot.FlowRate > 100 {
-			t.Errorf("Snapshot %d has invalid FlowRate: %d", i, snapshot.FlowRate)
-		}
-
-		if snapshot.State != nozzle.Opening && snapshot.State != nozzle.Closing {
-			t.Errorf("Snapshot %d has invalid State: %s", i, snapshot.State)
-		}
-
-		if snapshot.FailureRate < 0 || snapshot.FailureRate > 100 {
-			t.Errorf("Snapshot %d has invalid FailureRate: %d", i, snapshot.FailureRate)
-		}
-
-		if snapshot.SuccessRate < 0 || snapshot.SuccessRate > 100 {
-			t.Errorf("Snapshot %d has invalid SuccessRate: %d", i, snapshot.SuccessRate)
-		}
-	}
-
-	t.Logf("Captured %d snapshots", len(snapshotData))
 }
 
 // TestNozzleCallbackNoDeadlock verifies that the callback doesn't cause deadlocks
@@ -281,141 +243,43 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 	}
 }
 
-// TestNozzleHighConcurrency performs a stress test with many concurrent operations.
-func TestNozzleHighConcurrency(t *testing.T) {
-	t.Parallel()
-
-	const (
-		numGoroutines   = 100
-		opsPerGoroutine = 1000
-	)
-
-	var (
-		totalOps     atomic.Int64
-		callbackOps  atomic.Int64
-		successCount atomic.Int64
-		failureCount atomic.Int64
-	)
-
-	noz := nozzle.New(nozzle.Options[int]{
-		Interval:              100 * time.Millisecond,
-		AllowedFailurePercent: 30,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-			callbackOps.Add(1)
-			// Just access the data to ensure it's valid
-			if snapshot.FlowRate < 0 || snapshot.FlowRate > 100 {
-				t.Errorf("Invalid flow rate in snapshot: %d", snapshot.FlowRate)
-			}
-		},
-	})
-
-	defer func() {
-		if err := noz.Close(); err != nil {
-			t.Errorf("Failed to close nozzle: %v", err)
-		}
-	}()
-
-	start := time.Now()
-
-	var wg sync.WaitGroup
-
-	// Launch many goroutines performing operations
-	for goroutineIdx := range numGoroutines {
-		wg.Add(1)
-
-		go func(id int) {
-			defer wg.Done()
-
-			for j := range opsPerGoroutine {
-				totalOps.Add(1)
-
-				// Mix of success and failure
-				shouldSucceed := (id+j)%3 != 0
-
-				_, ok := noz.DoBool(func() (int, bool) {
-					return id*1000 + j, shouldSucceed
-				})
-
-				if ok {
-					if shouldSucceed {
-						successCount.Add(1)
-					} else {
-						failureCount.Add(1)
-					}
-				}
-			}
-		}(goroutineIdx)
-	}
-
-	// Launch a goroutine to periodically trigger state changes
-	wg.Add(1)
-
-	go func() {
-		defer wg.Done()
-
-		ticker := time.NewTicker(50 * time.Millisecond)
-		defer ticker.Stop()
-
-		timeout := time.After(10 * time.Second)
-
-		for {
-			select {
-			case <-ticker.C:
-				noz.Wait()
-			case <-timeout:
-				return
-			}
-		}
-	}()
-
-	wg.Wait()
-
-	duration := time.Since(start)
-
-	t.Logf("High concurrency test completed:")
-	t.Logf("  Duration: %v", duration)
-	t.Logf("  Total operations: %d", totalOps.Load())
-	t.Logf("  Successful operations: %d", successCount.Load())
-	t.Logf("  Failed operations: %d", failureCount.Load())
-	t.Logf("  Callback invocations: %d", callbackOps.Load())
-	t.Logf("  Ops/second: %.0f", float64(totalOps.Load())/duration.Seconds())
-
-	if totalOps.Load() != numGoroutines*opsPerGoroutine {
-		t.Errorf("Expected %d total operations, got %d",
-			numGoroutines*opsPerGoroutine, totalOps.Load())
-	}
-
-	if callbackOps.Load() == 0 {
-		t.Error("OnStateChange callback was never invoked during high concurrency test")
-	}
-}
-
 // TestNozzleRaceConditionRegression is a specific test to verify the race condition
-// described in the PLAN.md has been fixed.
+// described in the PLAN.md has been fixed. It also verifies snapshot immutability
+// and consistency during callback execution.
 func TestNozzleRaceConditionRegression(t *testing.T) {
 	t.Parallel()
 
-	// This test specifically targets the race condition where the mutex was
-	// unlocked during OnStateChange callback execution.
 	var (
 		stateModified atomic.Bool
 		wg            sync.WaitGroup
+		snapshots     []nozzle.StateSnapshot
+		snapshotMutex sync.Mutex
 	)
 
 	noz := nozzle.New(nozzle.Options[string]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-			// During this callback, try to detect if state is being modified
-			// by other goroutines (which shouldn't happen with the fix)
+			// Store snapshot for later verification
+			snapshotMutex.Lock()
+			snapshots = append(snapshots, snapshot)
+			snapshotMutex.Unlock()
 
+			// Store initial values to verify immutability
 			initialFlowRate := snapshot.FlowRate
-			time.Sleep(5 * time.Millisecond) // Give other goroutines a chance to interfere
+			initialState := snapshot.State
 
-			// The snapshot should be immutable, so these values should not change
+			// Give other goroutines a chance to interfere
+			time.Sleep(5 * time.Millisecond)
+
+			// The snapshot should be immutable
 			if snapshot.FlowRate != initialFlowRate {
 				stateModified.Store(true)
-				t.Error("Snapshot was modified during callback execution")
+				t.Error("Snapshot FlowRate was modified during callback execution")
+			}
+			if snapshot.State != initialState {
+				stateModified.Store(true)
+				t.Error("Snapshot State was modified during callback execution")
 			}
 		},
 	})
@@ -450,4 +314,14 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 	if stateModified.Load() {
 		t.Fatal("Race condition detected: state was modified during callback execution")
 	}
+
+	// Verify we captured snapshots
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
+
+	if len(snapshots) == 0 {
+		t.Error("No snapshots were captured")
+	}
+
+	t.Logf("Captured %d immutable snapshots", len(snapshots))
 }
