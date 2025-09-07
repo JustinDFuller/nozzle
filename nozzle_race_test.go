@@ -27,13 +27,38 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 			// without any race conditions
 			callbackCount.Add(1)
 
-			// Verify all fields are accessible
-			_ = snapshot.FlowRate
-			_ = snapshot.State
-			_ = snapshot.FailureRate
-			_ = snapshot.SuccessRate
-			_ = snapshot.Allowed
-			_ = snapshot.Blocked
+			// Verify all fields have valid values (stable assertions)
+			if snapshot.FlowRate < 0 || snapshot.FlowRate > 100 {
+				t.Errorf("Invalid FlowRate: %d (should be 0-100)", snapshot.FlowRate)
+			}
+			
+			if snapshot.State != nozzle.Opening && snapshot.State != nozzle.Closing {
+				t.Errorf("Invalid State: %s (should be Opening or Closing)", snapshot.State)
+			}
+			
+			if snapshot.FailureRate < 0 || snapshot.FailureRate > 100 {
+				t.Errorf("Invalid FailureRate: %d (should be 0-100)", snapshot.FailureRate)
+			}
+			
+			if snapshot.SuccessRate < 0 || snapshot.SuccessRate > 100 {
+				t.Errorf("Invalid SuccessRate: %d (should be 0-100)", snapshot.SuccessRate)
+			}
+			
+			// Verify rate consistency when there are operations
+			if snapshot.Allowed > 0 || snapshot.Blocked > 0 {
+				if snapshot.FailureRate+snapshot.SuccessRate != 100 {
+					t.Errorf("FailureRate (%d) + SuccessRate (%d) != 100", 
+						snapshot.FailureRate, snapshot.SuccessRate)
+				}
+			}
+			
+			if snapshot.Allowed < 0 {
+				t.Errorf("Invalid Allowed count: %d (should be >= 0)", snapshot.Allowed)
+			}
+			
+			if snapshot.Blocked < 0 {
+				t.Errorf("Invalid Blocked count: %d (should be >= 0)", snapshot.Blocked)
+			}
 		},
 	})
 
