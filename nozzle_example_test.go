@@ -234,7 +234,9 @@ func ExampleOptions() {
 	// Flow Rate: 100
 }
 
-func ExampleNozzle_Close() {
+// This example demonstrates the proper cleanup pattern to prevent goroutine leaks.
+// Always use defer n.Close() after creating a Nozzle to ensure resources are released.
+func Example_cleanup() {
 	// Create a nozzle
 	n := nozzle.New(nozzle.Options[string]{
 		Interval:              time.Second,
@@ -249,9 +251,11 @@ func ExampleNozzle_Close() {
 		return "Hello, World!", true
 	})
 
-	fmt.Printf("Result: %s, OK: %v\n", result, ok)
+	if ok {
+		fmt.Printf("Operation succeeded: %s\n", result)
+	}
 
 	// The deferred Close() will be called when the function exits
 	// Output:
-	// Result: Hello, World!, OK: true
+	// Operation succeeded: Hello, World!
 }

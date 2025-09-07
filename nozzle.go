@@ -209,6 +209,7 @@ func (n *Nozzle[T]) Close() error {
 		close(n.done)
 		n.timeTicker.Stop()
 	})
+
 	return nil
 }
 

@@ -170,13 +170,14 @@ func TestConcurrencyError(t *testing.T) {
 	}
 }
 
-// TestNozzleNoGoroutineLeak ensures that closing nozzles properly cleans up goroutines
+// TestNozzleNoGoroutineLeak ensures that closing nozzles properly cleans up goroutines.
 func TestNozzleNoGoroutineLeak(t *testing.T) {
 	t.Parallel()
 
 	// Get baseline goroutine count
 	runtime.GC()
 	time.Sleep(100 * time.Millisecond)
+
 	baseline := runtime.NumGoroutine()
 
 	// Create multiple nozzles
@@ -190,7 +191,9 @@ func TestNozzleNoGoroutineLeak(t *testing.T) {
 
 	// Verify goroutines were created
 	time.Sleep(100 * time.Millisecond)
+
 	withNozzles := runtime.NumGoroutine()
+
 	if withNozzles <= baseline {
 		t.Errorf("Expected goroutines to be created, baseline=%d, with nozzles=%d", baseline, withNozzles)
 	}
@@ -214,7 +217,7 @@ func TestNozzleNoGoroutineLeak(t *testing.T) {
 	}
 }
 
-// TestCloseIdempotent ensures Close can be called multiple times safely
+// TestCloseIdempotent ensures Close can be called multiple times safely.
 func TestCloseIdempotent(t *testing.T) {
 	t.Parallel()
 
@@ -224,14 +227,14 @@ func TestCloseIdempotent(t *testing.T) {
 	})
 
 	// Call Close multiple times
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		if err := n.Close(); err != nil {
 			t.Errorf("Close() call %d returned error: %v", i, err)
 		}
 	}
 }
 
-// TestConcurrentClose ensures Close is thread-safe
+// TestConcurrentClose ensures Close is thread-safe.
 func TestConcurrentClose(t *testing.T) {
 	t.Parallel()
 
@@ -242,10 +245,12 @@ func TestConcurrentClose(t *testing.T) {
 
 	var wg sync.WaitGroup
 	// Launch multiple goroutines to close concurrently
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
+
 			if err := n.Close(); err != nil {
 				t.Errorf("Concurrent Close() returned error: %v", err)
 			}
@@ -255,17 +260,17 @@ func TestConcurrentClose(t *testing.T) {
 	wg.Wait()
 }
 
-// TestOperationsAfterClose ensures operations handle closed state gracefully
+// TestOperationsAfterClose ensures operations handle closed state gracefully.
 func TestOperationsAfterClose(t *testing.T) {
 	t.Parallel()
 
-	n := New(Options[any]{
+	nozzle := New(Options[any]{
 		Interval:              100 * time.Millisecond,
 		AllowedFailurePercent: 50,
 	})
 
 	// Close the nozzle
-	if err := n.Close(); err != nil {
+	if err := nozzle.Close(); err != nil {
 		t.Fatalf("Failed to close nozzle: %v", err)
 	}
 
@@ -273,7 +278,7 @@ func TestOperationsAfterClose(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Try operations after close - they should not panic
-	result, ok := n.DoBool(func() (any, bool) {
+	result, ok := nozzle.DoBool(func() (any, bool) {
 		return "test", true
 	})
 	// We don't assert on the result as behavior after close is undefined,
@@ -281,7 +286,7 @@ func TestOperationsAfterClose(t *testing.T) {
 	_ = result
 	_ = ok
 
-	result2, err := n.DoError(func() (any, error) {
+	result2, err := nozzle.DoError(func() (any, error) {
 		return "test", nil
 	})
 	// Again, just ensure no panic
