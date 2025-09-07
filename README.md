@@ -84,11 +84,12 @@ import (
     "github.com/justindfuller/nozzle"
 )
 
-func main() {}
+func main() {
     n := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
+    defer n.Close()
 
     for i := 0; i < 1000; i++ {
         res, err := n.DoError(func() (*http.Response, error) {
@@ -120,11 +121,12 @@ import (
     "github.com/justindfuller/nozzle"
 )
 
-func main() {}
+func main() {
     n := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
+    defer n.Close()
 
     for i := 0; i < 1000; i++ {
         res, ok := n.DoBool(func() (*http.Response, bool) {
@@ -142,6 +144,32 @@ func main() {}
     }
 }
 ```
+
+### Resource Cleanup
+
+Always close the nozzle when done to prevent goroutine leaks:
+
+```go
+n := nozzle.New(nozzle.Options[any]{
+    Interval:              time.Second,
+    AllowedFailurePercent: 50,
+})
+defer n.Close()
+
+// Use the nozzle...
+```
+
+The `Close()` method:
+- Like closing a literal nozzle, the flow stops completely
+- Stops the internal ticker goroutine
+- Is idempotent (safe to call multiple times)
+- Should be called when the nozzle is no longer needed
+
+After closing:
+- `DoBool` returns the zero value and `false` without executing the callback
+- `DoError` returns the zero value and `nozzle.ErrClosed` without executing the callback
+- No callbacks are executed once the nozzle is closed
+- The nozzle becomes completely non-functional to prevent resource usage
 
 ### Generics
 
