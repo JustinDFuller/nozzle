@@ -151,7 +151,7 @@ func TestConcurrencyError(t *testing.T) {
 	wg.Add(2)
 
 	go func() {
-		_, err := noz.DoError(func() (any, error) {
+		if _, err := noz.DoError(func() (any, error) {
 			defer wg.Done()
 
 			time.Sleep(10 * time.Millisecond)
@@ -162,14 +162,13 @@ func TestConcurrencyError(t *testing.T) {
 			last = 1
 
 			return nil, nil
-		})
-		if err != nil && !errors.Is(err, ErrBlocked) {
+		}); err != nil && !errors.Is(err, ErrBlocked) {
 			t.Errorf("Unexpected error in goroutine 1: %v", err)
 		}
 	}()
 
 	go func() {
-		_, err := noz.DoError(func() (any, error) {
+		if _, err := noz.DoError(func() (any, error) {
 			defer wg.Done()
 
 			mut.Lock()
@@ -178,8 +177,7 @@ func TestConcurrencyError(t *testing.T) {
 			last = 2
 
 			return nil, nil
-		})
-		if err != nil && !errors.Is(err, ErrBlocked) {
+		}); err != nil && !errors.Is(err, ErrBlocked) {
 			t.Errorf("Unexpected error in goroutine 2: %v", err)
 		}
 	}()

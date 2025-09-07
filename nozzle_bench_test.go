@@ -147,8 +147,7 @@ func BenchmarkNozzle_DoBool_Control(b *testing.B) {
 	act := newActor(b.N / 2)
 
 	for range b.N {
-		err := act.do()
-		if err != nil {
+		if err := act.do(); err != nil {
 			continue
 		}
 
