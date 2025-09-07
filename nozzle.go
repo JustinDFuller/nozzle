@@ -100,25 +100,47 @@ type Nozzle[T any] struct {
 	closed bool
 }
 
-// StateSnapshot represents an immutable snapshot of the Nozzle's state at a point in time.
-// It is passed to the OnStateChange callback to provide thread-safe access to state information.
+// StateSnapshot represents an immutable snapshot of the Nozzle's state at a specific point in time.
+// This struct is passed to OnStateChange callbacks to provide thread-safe access to all
+// observable state without requiring mutex locks. All fields represent consistent state
+// from the same instant, ensuring atomic access to related metrics.
+//
+// Example usage:
+//
+//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+//	    if snapshot.FlowRate < 50 {
+//	        log.Printf("WARNING: Flow restricted to %d%%", snapshot.FlowRate)
+//	    }
+//	    metrics.SetGauge("nozzle.flow_rate", float64(snapshot.FlowRate))
+//	    metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
+//	}
 type StateSnapshot struct {
-	// FlowRate is the percentage of allowed operations (0-100).
+	// FlowRate is the current percentage of operations allowed through (0-100).
+	// When FlowRate is 100, all operations are allowed. When 0, all operations are blocked.
+	// The rate adjusts dynamically based on success/failure ratios.
 	FlowRate int64
 
-	// State indicates whether the Nozzle is opening or closing.
+	// State indicates whether the Nozzle is currently opening or closing.
+	// Opening means the flow rate is increasing (reducing restrictions).
+	// Closing means the flow rate is decreasing (increasing restrictions).
 	State State
 
-	// FailureRate is the percentage of failed operations.
+	// FailureRate is the percentage of failed operations in the current interval (0-100).
+	// This is calculated from recent operation outcomes within the interval window.
+	// A higher failure rate causes the nozzle to close (reduce flow).
 	FailureRate int64
 
-	// SuccessRate is the percentage of successful operations.
+	// SuccessRate is the percentage of successful operations in the current interval (0-100).
+	// This is calculated as (100 - FailureRate) for convenience.
+	// A higher success rate causes the nozzle to open (increase flow).
 	SuccessRate int64
 
-	// Allowed is the count of operations that were allowed.
+	// Allowed is the cumulative count of operations that have been allowed through
+	// since the nozzle was created. This counter never resets.
 	Allowed int64
 
-	// Blocked is the count of operations that were blocked.
+	// Blocked is the cumulative count of operations that have been blocked
+	// since the nozzle was created. This counter never resets.
 	Blocked int64
 }
 
@@ -146,17 +168,46 @@ type Options[T any] struct {
 	// If you are unsure, start with 50%.
 	AllowedFailurePercent int64
 
-	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
-	// This function will be called at most once per Interval.
-	// It receives a StateSnapshot containing an immutable copy of the Nozzle's state.
-	// The callback is called while the Nozzle's mutex is held, ensuring thread-safety.
+	// OnStateChange is an optional callback function invoked whenever the nozzle's
+	// state changes. The callback receives a StateSnapshot containing an immutable copy
+	// of the nozzle's state at the time of the change.
 	//
-	// Example:
+	// Execution guarantees:
+	//  - Called at most once per Interval, only when state actually changes
+	//  - Called sequentially (never concurrently) even with multiple nozzles
+	//  - Called while holding the nozzle's mutex (thread-safe but avoid blocking operations)
+	//  - Panics in callbacks are recovered and don't affect nozzle operation
 	//
-	//	nozzle.Options[*example]{
-	//		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-	//			fmt.Printf("State=%s, FlowRate=%d\n", snapshot.State, snapshot.FlowRate)
-	//		},
+	// Performance considerations:
+	//  - The callback executes synchronously during state calculation
+	//  - Long-running callbacks may delay subsequent state calculations
+	//  - StateSnapshot is passed by value (zero allocations, minimal overhead)
+	//  - Avoid heavy operations; consider queueing work for async processing
+	//
+	// Example - Basic logging:
+	//
+	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//	    log.Printf("State: %s, Flow: %d%%, Failures: %d%%",
+	//	        snapshot.State, snapshot.FlowRate, snapshot.FailureRate)
+	//	}
+	//
+	// Example - Metrics integration:
+	//
+	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//	    metrics.SetGauge("nozzle.flow_rate", float64(snapshot.FlowRate))
+	//	    metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
+	//	    if snapshot.State == nozzle.Closing {
+	//	        metrics.Increment("nozzle.closing_events")
+	//	    }
+	//	}
+	//
+	// Example - Alerting on degradation:
+	//
+	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//	    if snapshot.FlowRate < 25 {
+	//	        // Queue alert asynchronously to avoid blocking
+	//	        go alerting.Send("Critical: Flow rate at %d%%", snapshot.FlowRate)
+	//	    }
 	//	}
 	OnStateChange func(StateSnapshot)
 }
@@ -530,8 +581,9 @@ func (n *Nozzle[T]) failureRate() int64 {
 	return int64((float64(n.failures) / float64(n.failures+n.successes)) * 100)
 }
 
-// successRate calculates the success rate without acquiring the lock.
-// It assumes the caller already holds the lock.
+// successRate is an internal helper method that calculates the success rate without acquiring the lock.
+// It assumes the caller already holds the lock. This method is not exported and is used internally
+// by the calculate() method when creating StateSnapshots.
 func (n *Nozzle[T]) successRate() int64 {
 	if n.flowRate == 0 {
 		return 0
