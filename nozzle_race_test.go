@@ -12,6 +12,8 @@ import (
 // TestNozzleConcurrentStateChange verifies that concurrent operations don't cause race conditions
 // when the OnStateChange callback is invoked.
 func TestNozzleConcurrentStateChange(t *testing.T) {
+	t.Parallel()
+
 	var (
 		callbackCount atomic.Int32
 		wg            sync.WaitGroup
@@ -34,36 +36,42 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 			_ = snapshot.Blocked
 		},
 	})
-	defer noz.Close()
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Launch multiple goroutines that perform operations concurrently
 	// with varying success/failure patterns to trigger state changes
-	for i := range 10 {
+	for goroutineIdx := range 10 {
 		wg.Add(1)
 
-		go func(id int) {
+		go func(_ int) {
 			defer wg.Done()
 
 			for j := range 100 {
 				// Vary the success rate over time to trigger state changes
-				if j < 30 {
+				switch {
+				case j < 30:
 					// Start with high failure rate
 					noz.DoBool(func() (string, bool) {
 						return "failure", false
 					})
-				} else if j < 60 {
+				case j < 60:
 					// Then high success rate
 					noz.DoBool(func() (string, bool) {
 						return "success", true
 					})
-				} else {
+				default:
 					// Then mixed
 					noz.DoBool(func() (string, bool) {
 						return "mixed", j%3 == 0
 					})
 				}
 			}
-		}(i)
+		}(goroutineIdx)
 	}
 
 	// Launch a goroutine that triggers state calculations
@@ -91,18 +99,20 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 // TestNozzleStateSnapshotConsistency verifies that the snapshot passed to OnStateChange
 // contains consistent data that doesn't change during callback execution.
 func TestNozzleStateSnapshotConsistency(t *testing.T) {
+	t.Parallel()
+
 	snapshotData := make([]nozzle.StateSnapshot, 0, 100)
 
-	var mu sync.Mutex
+	var snapshotMutex sync.Mutex
 
 	noz := nozzle.New(nozzle.Options[int]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
 			// Store snapshot for later verification
-			mu.Lock()
+			snapshotMutex.Lock()
 			snapshotData = append(snapshotData, snapshot)
-			mu.Unlock()
+			snapshotMutex.Unlock()
 
 			// Simulate some work in the callback
 			time.Sleep(5 * time.Millisecond)
@@ -120,7 +130,12 @@ func TestNozzleStateSnapshotConsistency(t *testing.T) {
 			}
 		},
 	})
-	defer noz.Close()
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Generate mixed success/failure operations
 	for i := range 200 {
@@ -140,8 +155,8 @@ func TestNozzleStateSnapshotConsistency(t *testing.T) {
 	}
 
 	// Verify we got some snapshots
-	mu.Lock()
-	defer mu.Unlock()
+	snapshotMutex.Lock()
+	defer snapshotMutex.Unlock()
 
 	if len(snapshotData) == 0 {
 		t.Error("No snapshots were captured")
@@ -172,19 +187,21 @@ func TestNozzleStateSnapshotConsistency(t *testing.T) {
 // TestNozzleCallbackNoDeadlock verifies that the callback doesn't cause deadlocks
 // even with various callback patterns.
 func TestNozzleCallbackNoDeadlock(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		callback func(nozzle.StateSnapshot)
 	}{
 		{
 			name: "EmptyCallback",
-			callback: func(snapshot nozzle.StateSnapshot) {
+			callback: func(_ nozzle.StateSnapshot) {
 				// Do nothing
 			},
 		},
 		{
 			name: "SlowCallback",
-			callback: func(snapshot nozzle.StateSnapshot) {
+			callback: func(_ nozzle.StateSnapshot) {
 				time.Sleep(10 * time.Millisecond)
 			},
 		},
@@ -201,6 +218,8 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			done := make(chan struct{})
 
 			noz := nozzle.New(nozzle.Options[string]{
@@ -208,7 +227,12 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 				AllowedFailurePercent: 50,
 				OnStateChange:         tt.callback,
 			})
-			defer noz.Close()
+
+			defer func() {
+				if err := noz.Close(); err != nil {
+					t.Errorf("Failed to close nozzle: %v", err)
+				}
+			}()
 
 			// Run operations concurrently
 			go func() {
@@ -234,6 +258,8 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 
 // TestNozzleHighConcurrency performs a stress test with many concurrent operations.
 func TestNozzleHighConcurrency(t *testing.T) {
+	t.Parallel()
+
 	const (
 		numGoroutines   = 100
 		opsPerGoroutine = 1000
@@ -257,14 +283,19 @@ func TestNozzleHighConcurrency(t *testing.T) {
 			}
 		},
 	})
-	defer noz.Close()
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	start := time.Now()
 
 	var wg sync.WaitGroup
 
 	// Launch many goroutines performing operations
-	for i := range numGoroutines {
+	for goroutineIdx := range numGoroutines {
 		wg.Add(1)
 
 		go func(id int) {
@@ -288,7 +319,7 @@ func TestNozzleHighConcurrency(t *testing.T) {
 					}
 				}
 			}
-		}(i)
+		}(goroutineIdx)
 	}
 
 	// Launch a goroutine to periodically trigger state changes
@@ -337,6 +368,8 @@ func TestNozzleHighConcurrency(t *testing.T) {
 // TestNozzleRaceConditionRegression is a specific test to verify the race condition
 // described in the PLAN.md has been fixed.
 func TestNozzleRaceConditionRegression(t *testing.T) {
+	t.Parallel()
+
 	// This test specifically targets the race condition where the mutex was
 	// unlocked during OnStateChange callback execution.
 	var (
@@ -361,7 +394,12 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 			}
 		},
 	})
-	defer noz.Close()
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Launch multiple goroutines that aggressively try to modify state
 	for range 20 {
