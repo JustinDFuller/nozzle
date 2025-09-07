@@ -160,9 +160,16 @@ defer n.Close()
 ```
 
 The `Close()` method:
+- Like closing a literal nozzle, the flow stops completely
 - Stops the internal ticker goroutine
 - Is idempotent (safe to call multiple times)
 - Should be called when the nozzle is no longer needed
+
+After closing:
+- `DoBool` returns the zero value and `false` without executing the callback
+- `DoError` returns the zero value and `nozzle.ErrClosed` without executing the callback
+- No callbacks are executed once the nozzle is closed
+- The nozzle becomes completely non-functional to prevent resource usage
 
 ### Generics
 
