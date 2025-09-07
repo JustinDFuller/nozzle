@@ -281,9 +281,9 @@ func TestOperationsAfterClose(t *testing.T) {
 	// Test DoBool after close - should return (zero value, false)
 	result, ok := nozzle.DoBool(func() (any, bool) {
 		t.Error("Callback should not be called on closed nozzle")
+
 		return "test", true
 	})
-	
 	if ok {
 		t.Error("DoBool should return false for closed nozzle")
 	}
@@ -294,9 +294,9 @@ func TestOperationsAfterClose(t *testing.T) {
 	// Test DoError after close - should return (zero value, ErrClosed)
 	result2, err := nozzle.DoError(func() (any, error) {
 		t.Error("Callback should not be called on closed nozzle")
+
 		return "test", nil
 	})
-	
 	if !errors.Is(err, ErrClosed) {
 		t.Errorf("DoError should return ErrClosed for closed nozzle, got: %v", err)
 	}

@@ -221,7 +221,7 @@ func (n *Nozzle[T]) Close() error {
 		n.mut.Lock()
 		n.closed = true
 		n.mut.Unlock()
-		
+
 		close(n.done)
 		n.timeTicker.Stop()
 	})
@@ -254,10 +254,11 @@ func (n *Nozzle[T]) Close() error {
 // If the callback function does not return true or false, Nozzle's behavior will not be affected.
 func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	n.mut.Lock()
-	
+
 	// Check if nozzle is closed
 	if n.closed {
 		n.mut.Unlock()
+
 		return *new(T), false
 	}
 
@@ -324,10 +325,11 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 // If the callback function does not return an error, Nozzle's behavior will be affected according to the success method.
 func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	n.mut.Lock()
-	
+
 	// Check if nozzle is closed
 	if n.closed {
 		n.mut.Unlock()
+
 		return *new(T), ErrClosed
 	}
 
