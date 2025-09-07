@@ -316,8 +316,10 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+
 	t.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
@@ -388,8 +390,10 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+
 	t.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	})

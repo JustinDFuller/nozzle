@@ -5,12 +5,11 @@
         "modules-download-mode": "readonly"
     },
     "output": {
-        "sort-results": true,
-        "sort-order": ["file"],
-        "show-stats": true
+        "show-stats": true,
+        "sort-order": ["file"]
     },
     "linters": {
-        "enable-all": true,
+        "default": "all",
         "disable": [
             "mnd",
             "lll",
@@ -22,47 +21,16 @@
             "dupl",
             "ireturn",
             "nilnil",
-            "testableexamples"
+            "testableexamples",
+            "depguard",
+            "varnamelen",
+            "noinlineerr",
+            "wsl"
         ]
     },
     "issues": {
         "fix": false,
         "max-issues-per-linter": 0,
-        "max-same-issues": 0,
-        "exclude-rules": [
-          {
-            "linters": ["errcheck"],
-            "text": "Error return value of `noz.DoError` is not checked"
-          }
-        ]
-    },
-    "linters-settings": {
-        "wsl": {
-          "allow-cuddle-declarations": true
-        },
-        "mnd": {
-            "ignored-numbers": [
-                "0",
-                "100",
-                "2"
-            ]
-        },
-        "varnamelen": {
-            "max-distance": 20,
-            "ignore-decls": [
-              "wg sync.WaitGroup"
-            ]
-        },
-        "depguard": {
-            "rules": {
-                "main": {
-                    "allow": [
-                        "$gostd",
-                        "github.com/justindfuller/nozzle",
-                        "golang.org/x/time/rate"
-                    ]
-                }
-            }
-        }
+        "max-same-issues": 0
     }
 }

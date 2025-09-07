@@ -10,15 +10,17 @@ import (
 
 func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(b.N)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		noz.DoBool(func() (any, bool) {
 			err := act.do()
 
@@ -29,15 +31,17 @@ func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 
 func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(0)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		noz.DoBool(func() (any, bool) {
 			err := act.do()
 
@@ -48,15 +52,17 @@ func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 
 func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(b.N / 2)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		noz.DoBool(func() (any, bool) {
 			err := act.do()
 
@@ -67,15 +73,17 @@ func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 
 func BenchmarkNozzle_DoError_Open(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(b.N)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
@@ -91,15 +99,17 @@ func BenchmarkNozzle_DoError_Open(b *testing.B) {
 
 func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(0)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
@@ -115,15 +125,17 @@ func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 
 func BenchmarkNozzle_DoError_Half(b *testing.B) {
 	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+
 	b.Cleanup(func() {
-		if err := noz.Close(); err != nil {
+		err := noz.Close()
+		if err != nil {
 			b.Errorf("Failed to close nozzle: %v", err)
 		}
 	})
 
 	act := newActor(b.N / 2)
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err := noz.DoError(func() (any, error) {
 			err := act.do()
 
@@ -140,8 +152,9 @@ func BenchmarkNozzle_DoError_Half(b *testing.B) {
 func BenchmarkNozzle_DoBool_Control(b *testing.B) {
 	act := newActor(b.N / 2)
 
-	for i := 0; i < b.N; i++ {
-		if err := act.do(); err != nil {
+	for range b.N {
+		err := act.do()
+		if err != nil {
 			continue
 		}
 
