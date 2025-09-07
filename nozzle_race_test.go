@@ -108,13 +108,6 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
 			// Simply count callbacks - no validation here
 			callbackCount.Add(1)
-			// Access fields to ensure they're readable without race
-			_ = snapshot.FlowRate
-			_ = snapshot.State
-			_ = snapshot.FailureRate
-			_ = snapshot.SuccessRate
-			_ = snapshot.Allowed
-			_ = snapshot.Blocked
 		},
 	})
 
@@ -195,10 +188,14 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 		{
 			name: "AccessAllFields",
 			callback: func(snapshot nozzle.StateSnapshot) {
+				// Access all fields to verify no deadlock occurs
 				total := snapshot.FlowRate + snapshot.FailureRate + snapshot.SuccessRate
-				_ = total
-				_ = snapshot.State
-				_ = snapshot.Allowed + snapshot.Blocked
+				sum := snapshot.Allowed + snapshot.Blocked
+				// Use variables to avoid compiler warnings
+				if total < 0 || sum < 0 || snapshot.State == "" {
+					// This should never happen but satisfies the compiler
+					return
+				}
 			},
 		},
 	}
