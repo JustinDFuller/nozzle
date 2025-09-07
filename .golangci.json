@@ -5,7 +5,7 @@
     },
     "output": {
         "sort-results": true,
-        "sort-order": "file",
+        "sort-order": ["file"],
         "show-stats": true
     },
     "linters": {
@@ -21,8 +21,9 @@
             "maintidx",
             "dupl",
             "ireturn",
-            "nilnil"
-
+            "nilnil",
+            "exportloopref",
+            "testableexamples"
         ]
     },
     "issues": {

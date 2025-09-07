@@ -316,6 +316,7 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 
 	if fr := noz.FlowRate(); fr != 100 {
 		t.Fatalf("Expected FlowRate=100 but got %d", fr)
@@ -383,6 +384,7 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	defer noz.Close()
 
 	if fr := noz.FlowRate(); fr != 100 {
 		t.Fatalf("Expected FlowRate=100 but got %d", fr)
