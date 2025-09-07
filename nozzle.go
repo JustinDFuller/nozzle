@@ -166,7 +166,6 @@ func New[T any](options Options[T]) *Nozzle[T] {
 		flowRate:   100,
 		Options:    options,
 		state:      Opening,
-		ticker:     make(chan struct{}, 1),
 		done:       make(chan struct{}),
 		timeTicker: time.NewTicker(options.Interval),
 	}
