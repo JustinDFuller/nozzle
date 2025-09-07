@@ -100,6 +100,28 @@ type Nozzle[T any] struct {
 	closed bool
 }
 
+// StateSnapshot represents an immutable snapshot of the Nozzle's state at a point in time.
+// It is passed to the OnStateChange callback to provide thread-safe access to state information.
+type StateSnapshot struct {
+	// FlowRate is the percentage of allowed operations (0-100).
+	FlowRate int64
+
+	// State indicates whether the Nozzle is opening or closing.
+	State State
+
+	// FailureRate is the percentage of failed operations.
+	FailureRate int64
+
+	// SuccessRate is the percentage of successful operations.
+	SuccessRate int64
+
+	// Allowed is the count of operations that were allowed.
+	Allowed int64
+
+	// Blocked is the count of operations that were blocked.
+	Blocked int64
+}
+
 // Options controls the behavior of the Nozzle.
 // See each field for explanations.
 type Options[T any] struct {
@@ -126,16 +148,17 @@ type Options[T any] struct {
 
 	// OnStateChange is a callback function that will be called whenever the Nozzle's state changes.
 	// This function will be called at most once per Interval.
-	// It receives a Nozzle as an argument, which you can then call to get information about the state of the Nozzle.
+	// It receives a StateSnapshot containing an immutable copy of the Nozzle's state.
+	// The callback is called while the Nozzle's mutex is held, ensuring thread-safety.
 	//
 	// Example:
 	//
 	//	nozzle.Options[*example]{
-	//		OnStateChange(n *nozzle.Nozzle[*example]) {
-	//			fmt.Printf("State=%s\n", n.State())
+	//		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//			fmt.Printf("State=%s, FlowRate=%d\n", snapshot.State, snapshot.FlowRate)
 	//		},
 	//	}
-	OnStateChange func(*Nozzle[T])
+	OnStateChange func(StateSnapshot)
 }
 
 // State describes the current direction the Nozzle is moving.
@@ -403,12 +426,20 @@ func (n *Nozzle[T]) calculate() {
 	}
 
 	if changed && n.Options.OnStateChange != nil {
-		// Need to unlock so OnStateChange can call public methods.
-		n.mut.Unlock()
+		// Create an immutable snapshot of the current state.
+		// This is safe to pass to the callback without unlocking the mutex.
+		snapshot := StateSnapshot{
+			FlowRate:    n.flowRate,
+			State:       n.state,
+			FailureRate: n.failureRate(),
+			SuccessRate: n.successRate(),
+			Allowed:     n.allowed,
+			Blocked:     n.blocked,
+		}
 
-		n.Options.OnStateChange(n)
-
-		n.mut.Lock()
+		// Call the callback with the snapshot.
+		// The mutex remains locked, preventing race conditions.
+		n.Options.OnStateChange(snapshot)
 	}
 
 	n.reset()
@@ -497,6 +528,20 @@ func (n *Nozzle[T]) failureRate() int64 {
 	// Ex: 500 failures, 500 successes
 	// (500 / (500 + 500)) * 100 = 50
 	return int64((float64(n.failures) / float64(n.failures+n.successes)) * 100)
+}
+
+// successRate calculates the success rate without acquiring the lock.
+// It assumes the caller already holds the lock.
+func (n *Nozzle[T]) successRate() int64 {
+	if n.flowRate == 0 {
+		return 0
+	}
+
+	if n.failures == 0 && n.successes == 0 {
+		return 100
+	}
+
+	return 100 - n.failureRate()
 }
 
 // SuccessRate reports the success rate of Nozzle calls.

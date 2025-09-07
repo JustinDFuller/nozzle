@@ -236,11 +236,11 @@ func ExampleOptions() {
 	noz := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(n *nozzle.Nozzle[[]string]) {
-			fmt.Printf("New State: %s\n", n.State())
-			fmt.Printf("Failure Rate: %d\n", n.FailureRate())
-			fmt.Printf("Success Rate: %d\n", n.SuccessRate())
-			fmt.Printf("Flow Rate: %d\n", n.FlowRate())
+		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+			fmt.Printf("New State: %s\n", snapshot.State)
+			fmt.Printf("Failure Rate: %d\n", snapshot.FailureRate)
+			fmt.Printf("Success Rate: %d\n", snapshot.SuccessRate)
+			fmt.Printf("Flow Rate: %d\n", snapshot.FlowRate)
 		},
 	})
 
