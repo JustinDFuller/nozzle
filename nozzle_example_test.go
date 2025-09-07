@@ -259,3 +259,34 @@ func Example_cleanup() {
 	// Output:
 	// Operation succeeded: Hello, World!
 }
+
+// This example demonstrates that operations on a closed Nozzle return the zero value
+// and ErrClosed without executing the callback function.
+func Example_closedBehavior() {
+	// Create a nozzle
+	n := nozzle.New(nozzle.Options[int]{
+		Interval:              time.Second,
+		AllowedFailurePercent: 50,
+	})
+
+	// Close the nozzle
+	n.Close()
+
+	// DoBool on closed nozzle returns zero value and false
+	resultBool, ok := n.DoBool(func() (int, bool) {
+		// This callback will not be executed
+		return 42, true
+	})
+	fmt.Printf("DoBool result: %d, ok: %v\n", resultBool, ok)
+
+	// DoError on closed nozzle returns zero value and ErrClosed
+	resultError, err := n.DoError(func() (int, error) {
+		// This callback will not be executed
+		return 42, nil
+	})
+	fmt.Printf("DoError result: %d, error: %v\n", resultError, err)
+
+	// Output:
+	// DoBool result: 0, ok: false
+	// DoError result: 0, error: nozzle: closed
+}

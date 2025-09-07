@@ -1,6 +1,7 @@
 package nozzle //nolint:testpackage // meant to NOT be a blackbox test
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"sync"
@@ -296,7 +297,7 @@ func TestOperationsAfterClose(t *testing.T) {
 		return "test", nil
 	})
 	
-	if err != ErrClosed {
+	if !errors.Is(err, ErrClosed) {
 		t.Errorf("DoError should return ErrClosed for closed nozzle, got: %v", err)
 	}
 	if result2 != nil {
