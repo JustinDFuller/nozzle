@@ -105,7 +105,7 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 	noz := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ nozzle.StateSnapshot) {
 			// Simply count callbacks - no validation here
 			callbackCount.Add(1)
 		},

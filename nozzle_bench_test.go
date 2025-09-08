@@ -167,7 +167,7 @@ func BenchmarkNozzle_StateSnapshot(b *testing.B) {
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
 			// Simulate accessing snapshot fields as would happen in real usage
 			// Access fields to ensure they're included in benchmark measurements
-			if snapshot.FlowRate < 0 || snapshot.State == "" || 
+			if snapshot.FlowRate < 0 || snapshot.State == "" ||
 				snapshot.FailureRate < 0 || snapshot.SuccessRate < 0 ||
 				snapshot.Allowed < 0 || snapshot.Blocked < 0 {
 				// This should never happen but ensures fields are accessed
