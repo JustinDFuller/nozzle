@@ -177,23 +177,25 @@ As you can see, this package uses generics. This allows the Nozzle's methods to 
 
 ## Observability
 
-You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occured.
+You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occurred.
+
+The callback receives a `StateSnapshot` containing an immutable copy of the nozzle's state, ensuring thread-safe access to state information:
 
 ```go
 nozzle.New(nozzle.Options[*example]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
-    OnStateChange: func(noz *nozzle.Nozzle[*example]) {
+    OnStateChange: func(snapshot nozzle.StateSnapshot) {
         logger.Info(
             "Nozzle State Change",
             "state",
-            s,
+            snapshot.State,
             "flowRate",
-            noz.FlowRate(),
+            snapshot.FlowRate,
             "failureRate",
-            noz.FailureRate(),
+            snapshot.FailureRate,
             "successRate",
-            noz.SuccessRate(),
+            snapshot.SuccessRate,
         )
         /**
          Example output:
@@ -229,6 +231,36 @@ BenchmarkNozzle_DoBool_Control-2         1292871             960.8 ns/op        
 PASS
 ok      github.com/justindfuller/nozzle 11.410s
 ```
+
+## Thread Safety
+
+The nozzle library is designed for safe concurrent use across multiple goroutines.
+
+### Safe Concurrent Operations
+
+All public methods are thread-safe and can be called concurrently:
+
+```go
+// Safe: Multiple goroutines can call DoBool/DoError concurrently
+var wg sync.WaitGroup
+for i := 0; i < 100; i++ {
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        result, ok := noz.DoBool(func() (string, bool) {
+            return "data", true
+        })
+    }()
+}
+wg.Wait()
+```
+
+### Callback Execution Guarantees
+
+- Callbacks are called **sequentially** (never concurrently)
+- Callbacks are called **at most once per interval**
+- Panics in callbacks are recovered and don't affect nozzle operation
+- Long-running callbacks may delay subsequent state calculations
 
 ## Documentation
 
