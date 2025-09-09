@@ -1,0 +1,10 @@
+goos: linux
+goarch: amd64
+pkg: github.com/justindfuller/nozzle
+cpu: Intel(R) Core(TM) m3-8100Y CPU @ 1.10GHz
+BenchmarkNozzle_DoBool_Open-4    	49406827	       215.6 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoBool_Half-4    	54141877	       218.5 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoError_Open-4   	55353398	       219.0 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoError_Half-4   	55671439	       218.3 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/justindfuller/nozzle	48.009s

@@ -1,0 +1,19 @@
+goos: linux
+goarch: amd64
+pkg: github.com/justindfuller/nozzle
+cpu: Intel(R) Core(TM) m3-8100Y CPU @ 1.10GHz
+BenchmarkNozzle_DoBool_Open-4                	 5001051	       215.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoBool_Closed-4              	23758887	        44.86 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoBool_Half-4                	 6451597	       238.1 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoError_Open-4               	 5082452	       217.4 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoError_Closed-4             	19819748	        61.44 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoError_Half-4               	 4857417	       234.2 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_DoBool_Control-4             	 9533760	       130.7 ns/op	       0 B/op	       0 allocs/op
+BenchmarkNozzle_StateSnapshot-4              	   10000	    150101 ns/op	       0 B/op	       0 allocs/op
+--- BENCH: BenchmarkNozzle_StateSnapshot-4
+    nozzle_bench_test.go:185: Created 0 snapshots during benchmark
+    nozzle_bench_test.go:185: Created 0 snapshots during benchmark
+    nozzle_bench_test.go:185: Created 99 snapshots during benchmark
+BenchmarkNozzle_StateSnapshot_NoCallback-4   	   10000	    158109 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/justindfuller/nozzle	14.619s
