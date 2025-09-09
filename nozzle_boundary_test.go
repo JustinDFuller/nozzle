@@ -70,8 +70,8 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 	})
 }
 
-// TestNozzleNoOverflowAtBoundaries verifies that prolonged boundary conditions don't cause overflow.
-func TestNozzleNoOverflowAtBoundaries(t *testing.T) {
+// TestNozzleBoundedGrowth verifies that decreaseBy remains bounded even during prolonged boundary conditions.
+func TestNozzleBoundedGrowth(t *testing.T) {
 	n := New[any](Options[any]{
 		Interval:              5 * time.Millisecond,
 		AllowedFailurePercent: 10,
@@ -101,8 +101,8 @@ func TestNozzleNoOverflowAtBoundaries(t *testing.T) {
 				initialDecrease, n.decreaseBy)
 		}
 		
-		// Verify decreaseBy is reasonable (not approaching overflow)
-		const reasonable = 1000000 // Much less than overflow range
+		// Verify decreaseBy remains bounded to a reasonable value
+		const reasonable = 1000000 // Should be much smaller due to boundary checks
 		if n.decreaseBy < -reasonable || n.decreaseBy > reasonable {
 			t.Errorf("decreaseBy has unreasonable value: %d", n.decreaseBy)
 		}
