@@ -507,7 +507,7 @@ func (n *Nozzle[T]) calculate() {
 // close reduces the flow rate and increases the multiplier to speed up the closing process.
 // It is called when the failure rate exceeds the allowed threshold.
 func (n *Nozzle[T]) close() {
-	// Early return if already at minimum, preventing unbounded growth of changeBy
+	// Early return at boundary prevents changeBy from growing unboundedly during sustained failures
 	if n.flowRate == 0 {
 		return
 	}
@@ -521,10 +521,10 @@ func (n *Nozzle[T]) close() {
 	n.changeBy = mult * 2
 }
 
-// open increases the flow rate and doubles the multiplier to speed up the opening process.
+// open increases the flow rate and doubles changeBy to speed up the opening process.
 // It is called when the failure rate is within the allowed threshold.
 func (n *Nozzle[T]) open() {
-	// Early return if already at maximum, preventing unbounded growth of changeBy
+	// Early return at boundary prevents changeBy from growing unboundedly during sustained successes
 	if n.flowRate == 100 {
 		return
 	}

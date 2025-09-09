@@ -6,6 +6,11 @@ import (
 	"time"
 )
 
+// maxExpectedChangeBy is the maximum expected absolute value for changeBy after
+// reaching boundaries. Since changeBy doubles on each iteration until boundaries
+// are reached, we expect it to stabilize at a reasonable value (typically < 100).
+const maxExpectedChangeBy = 100
+
 // TestNozzleBoundaryBehavior verifies that changeBy stops growing at flow rate boundaries.
 func TestNozzleBoundaryBehavior(t *testing.T) {
 	t.Parallel()
@@ -37,9 +42,7 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 		changeAtZero := noz.changeBy
 
 		// Stay at zero for many iterations (simulating extended outage)
-		for i := range 100 {
-			_ = i // unused
-
+		for range 100 {
 			noz.close()
 		}
 
@@ -55,8 +58,8 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 		}
 
 		// Verify changeBy is reasonable (should be small since it stops at boundary)
-		if noz.changeBy < -100 || noz.changeBy > 100 {
-			t.Errorf("changeBy has unexpected value: %d (should be small)", noz.changeBy)
+		if noz.changeBy < -maxExpectedChangeBy || noz.changeBy > maxExpectedChangeBy {
+			t.Errorf("changeBy has unexpected value: %d (expected abs value <= %d)", noz.changeBy, maxExpectedChangeBy)
 		}
 
 		noz.mut.Unlock()
@@ -78,9 +81,7 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 		changeAt100 := noz.changeBy
 
 		// Stay at 100 for many iterations (simulating continued success)
-		for i := range 100 {
-			_ = i // unused
-
+		for range 100 {
 			noz.open()
 		}
 
@@ -96,8 +97,8 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 		}
 
 		// Verify changeBy is reasonable
-		if noz.changeBy < -100 || noz.changeBy > 100 {
-			t.Errorf("changeBy has unexpected value: %d (should be small)", noz.changeBy)
+		if noz.changeBy < -maxExpectedChangeBy || noz.changeBy > maxExpectedChangeBy {
+			t.Errorf("changeBy has unexpected value: %d (expected abs value <= %d)", noz.changeBy, maxExpectedChangeBy)
 		}
 
 		noz.mut.Unlock()
