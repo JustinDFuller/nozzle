@@ -6,7 +6,6 @@ package nozzle
 
 import (
 	"errors"
-	"math"
 	"sync"
 	"time"
 )
@@ -35,15 +34,6 @@ var ErrBlocked = errors.New("nozzle: blocked")
 // After Close() is called, all operations will fail with this error (for DoError)
 // or return false (for DoBool).
 var ErrClosed = errors.New("nozzle: closed")
-
-// Constants for overflow protection.
-const (
-	// maxDecreaseBy is the maximum absolute value for decreaseBy to prevent integer overflow.
-	// Since decreaseBy doubles on each iteration, we limit it to prevent overflow.
-	// With int64, max value is ~9.2e18. We set a conservative limit at 1 billion
-	// which allows for ~30 doublings before hitting the cap.
-	maxDecreaseBy int64 = 1000000000
-)
 
 // Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
 // It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
@@ -516,26 +506,24 @@ func (n *Nozzle[T]) calculate() {
 // close reduces the flow rate and increases the multiplier to speed up the closing process.
 // It is called when the failure rate exceeds the allowed threshold.
 func (n *Nozzle[T]) close() {
+	// Early return if already at minimum, preventing unbounded growth of decreaseBy
+	if n.flowRate == 0 {
+		return
+	}
+
 	mult := n.decreaseBy
 	if mult > -1 {
 		mult = -1
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-
-	// Safe multiplication with overflow protection
-	nextDecrease := safeMultiply(mult, 2)
-	// Apply cap to prevent unbounded growth
-	if nextDecrease < -maxDecreaseBy {
-		nextDecrease = -maxDecreaseBy
-	}
-
-	n.decreaseBy = nextDecrease
+	n.decreaseBy = mult * 2
 }
 
 // open increases the flow rate and doubles the multiplier to speed up the opening process.
 // It is called when the failure rate is within the allowed threshold.
 func (n *Nozzle[T]) open() {
+	// Early return if already at maximum, preventing unbounded growth of decreaseBy
 	if n.flowRate == 100 {
 		return
 	}
@@ -546,15 +534,7 @@ func (n *Nozzle[T]) open() {
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-
-	// Safe multiplication with overflow protection
-	nextDecrease := safeMultiply(mult, 2)
-	// Apply cap to prevent unbounded growth
-	if nextDecrease > maxDecreaseBy {
-		nextDecrease = maxDecreaseBy
-	}
-
-	n.decreaseBy = nextDecrease
+	n.decreaseBy = mult * 2
 }
 
 // reset reinitializes the Nozzle's state for the next interval.
@@ -694,34 +674,4 @@ func clamp(i int64) int64 {
 	}
 
 	return i
-}
-
-// safeMultiply performs multiplication with overflow detection.
-// If the multiplication would overflow, it returns the maximum or minimum int64 value
-// depending on the sign of the result.
-func safeMultiply(a, b int64) int64 {
-	// Handle special cases
-	if a == 0 || b == 0 {
-		return 0
-	}
-
-	// Check if multiplication would overflow
-	// For positive result (both positive)
-	if a > 0 && b > 0 && a > math.MaxInt64/b {
-		return math.MaxInt64
-	}
-	// For positive result (both negative)
-	if a < 0 && b < 0 && a < math.MaxInt64/b {
-		return math.MaxInt64
-	}
-	// For negative result (a positive, b negative)
-	if a > 0 && b < 0 && b < math.MinInt64/a {
-		return math.MinInt64
-	}
-	// For negative result (a negative, b positive)
-	if a < 0 && b > 0 && a < math.MinInt64/b {
-		return math.MinInt64
-	}
-
-	return a * b
 }
