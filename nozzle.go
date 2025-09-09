@@ -45,10 +45,11 @@ type Nozzle[T any] struct {
 	// See the nozzle.Options docs for how it works.
 	Options Options[T]
 
-	// decreaseBy adjusts the rate at which the flowRate changes.
+	// changeBy adjusts the rate at which the flowRate changes.
 	// It determines how quickly the Nozzle opens or closes.
-	// Example: If decreaseBy is -2, flowRate decreases faster than if decreaseBy is -1
-	decreaseBy int64
+	// Negative values close the nozzle, positive values open it.
+	// Example: If changeBy is -2, flowRate decreases by 2; if changeBy is 2, flowRate increases by 2
+	changeBy int64
 
 	// flowRate indicates the percentage of allowed operations at any given time.
 	// Example: A flowRate of 100 means all operations are allowed, while a flowRate of 0 means none are allowed.
@@ -506,29 +507,35 @@ func (n *Nozzle[T]) calculate() {
 // close reduces the flow rate and increases the multiplier to speed up the closing process.
 // It is called when the failure rate exceeds the allowed threshold.
 func (n *Nozzle[T]) close() {
-	mult := n.decreaseBy
+	// Early return at boundary prevents changeBy from growing unboundedly during sustained failures
+	if n.flowRate == 0 {
+		return
+	}
+
+	mult := n.changeBy
 	if mult > -1 {
 		mult = -1
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-	n.decreaseBy = (mult * 2)
+	n.changeBy = mult * 2
 }
 
-// open increases the flow rate and doubles the multiplier to speed up the opening process.
+// open increases the flow rate and doubles changeBy to speed up the opening process.
 // It is called when the failure rate is within the allowed threshold.
 func (n *Nozzle[T]) open() {
+	// Early return at boundary prevents changeBy from growing unboundedly during sustained successes
 	if n.flowRate == 100 {
 		return
 	}
 
-	mult := n.decreaseBy
+	mult := n.changeBy
 	if mult < 1 {
 		mult = 1
 	}
 
 	n.flowRate = clamp(n.flowRate + mult)
-	n.decreaseBy = mult * 2
+	n.changeBy = mult * 2
 }
 
 // reset reinitializes the Nozzle's state for the next interval.
