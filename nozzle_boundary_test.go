@@ -14,73 +14,8 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 	defer n.Close()
 
 	t.Run("closing stops at zero", func(t *testing.T) {
-		// Set initial state
 		n.mut.Lock()
 		n.flowRate = 10
-		n.decreaseBy = 0
-		
-		// Simulate multiple close operations
-		var lastDecrease int64
-		for i := 0; i < 20; i++ {
-			n.close()
-			
-			// Once we hit zero, decreaseBy should stop changing
-			if n.flowRate == 0 {
-				if lastDecrease != 0 && n.decreaseBy != lastDecrease {
-					t.Errorf("decreaseBy changed after reaching flowRate=0: was %d, now %d", 
-						lastDecrease, n.decreaseBy)
-				}
-				lastDecrease = n.decreaseBy
-			}
-		}
-		
-		// Verify we're at the boundary
-		if n.flowRate != 0 {
-			t.Errorf("expected flowRate to be 0, got %d", n.flowRate)
-		}
-		n.mut.Unlock()
-	})
-
-	t.Run("opening stops at 100", func(t *testing.T) {
-		// Reset state
-		n.mut.Lock()
-		n.flowRate = 90
-		n.decreaseBy = 0
-		
-		// Simulate multiple open operations
-		var lastDecrease int64
-		for i := 0; i < 20; i++ {
-			n.open()
-			
-			// Once we hit 100, decreaseBy should stop changing
-			if n.flowRate == 100 {
-				if lastDecrease != 0 && n.decreaseBy != lastDecrease {
-					t.Errorf("decreaseBy changed after reaching flowRate=100: was %d, now %d", 
-						lastDecrease, n.decreaseBy)
-				}
-				lastDecrease = n.decreaseBy
-			}
-		}
-		
-		// Verify we're at the boundary
-		if n.flowRate != 100 {
-			t.Errorf("expected flowRate to be 100, got %d", n.flowRate)
-		}
-		n.mut.Unlock()
-	})
-}
-
-// TestNozzleBoundedGrowth verifies that decreaseBy remains bounded even during prolonged boundary conditions.
-func TestNozzleBoundedGrowth(t *testing.T) {
-	n := New[any](Options[any]{
-		Interval:              5 * time.Millisecond,
-		AllowedFailurePercent: 10,
-	})
-	defer n.Close()
-
-	t.Run("extended failure at zero", func(t *testing.T) {
-		n.mut.Lock()
-		n.flowRate = 5
 		n.decreaseBy = 0
 		
 		// Drive to zero
@@ -88,30 +23,36 @@ func TestNozzleBoundedGrowth(t *testing.T) {
 			n.close()
 		}
 		
-		initialDecrease := n.decreaseBy
+		// Record decreaseBy when we hit zero
+		decreaseAtZero := n.decreaseBy
 		
-		// Stay at zero for many iterations
+		// Stay at zero for many iterations (simulating extended outage)
 		for i := 0; i < 100; i++ {
 			n.close()
 		}
 		
 		// decreaseBy should not have changed
-		if n.decreaseBy != initialDecrease {
-			t.Errorf("decreaseBy changed during extended zero state: was %d, now %d", 
-				initialDecrease, n.decreaseBy)
+		if n.decreaseBy != decreaseAtZero {
+			t.Errorf("decreaseBy changed after reaching flowRate=0: was %d, now %d", 
+				decreaseAtZero, n.decreaseBy)
 		}
 		
-		// Verify decreaseBy remains bounded to a reasonable value
-		const reasonable = 1000000 // Should be much smaller due to boundary checks
-		if n.decreaseBy < -reasonable || n.decreaseBy > reasonable {
-			t.Errorf("decreaseBy has unreasonable value: %d", n.decreaseBy)
+		// Verify we're at the boundary
+		if n.flowRate != 0 {
+			t.Errorf("expected flowRate to be 0, got %d", n.flowRate)
 		}
+		
+		// Verify decreaseBy is reasonable (should be small since it stops at boundary)
+		if n.decreaseBy < -100 || n.decreaseBy > 100 {
+			t.Errorf("decreaseBy has unexpected value: %d (should be small)", n.decreaseBy)
+		}
+		
 		n.mut.Unlock()
 	})
 
-	t.Run("extended success at 100", func(t *testing.T) {
+	t.Run("opening stops at 100", func(t *testing.T) {
 		n.mut.Lock()
-		n.flowRate = 95
+		n.flowRate = 90
 		n.decreaseBy = 0
 		
 		// Drive to 100
@@ -119,24 +60,30 @@ func TestNozzleBoundedGrowth(t *testing.T) {
 			n.open()
 		}
 		
-		initialDecrease := n.decreaseBy
+		// Record decreaseBy when we hit 100
+		decreaseAt100 := n.decreaseBy
 		
-		// Stay at 100 for many iterations
+		// Stay at 100 for many iterations (simulating continued success)
 		for i := 0; i < 100; i++ {
 			n.open()
 		}
 		
 		// decreaseBy should not have changed
-		if n.decreaseBy != initialDecrease {
-			t.Errorf("decreaseBy changed during extended 100 state: was %d, now %d", 
-				initialDecrease, n.decreaseBy)
+		if n.decreaseBy != decreaseAt100 {
+			t.Errorf("decreaseBy changed after reaching flowRate=100: was %d, now %d", 
+				decreaseAt100, n.decreaseBy)
+		}
+		
+		// Verify we're at the boundary
+		if n.flowRate != 100 {
+			t.Errorf("expected flowRate to be 100, got %d", n.flowRate)
 		}
 		
 		// Verify decreaseBy is reasonable
-		const reasonable = 1000000
-		if n.decreaseBy < -reasonable || n.decreaseBy > reasonable {
-			t.Errorf("decreaseBy has unreasonable value: %d", n.decreaseBy)
+		if n.decreaseBy < -100 || n.decreaseBy > 100 {
+			t.Errorf("decreaseBy has unexpected value: %d (should be small)", n.decreaseBy)
 		}
+		
 		n.mut.Unlock()
 	})
 }
