@@ -706,19 +706,19 @@ func safeMultiply(a, b int64) int64 {
 	}
 
 	// Check if multiplication would overflow
-	// For positive result
+	// For positive result (both positive)
 	if a > 0 && b > 0 && a > math.MaxInt64/b {
 		return math.MaxInt64
 	}
-	// For negative result (both negative)
+	// For positive result (both negative)
 	if a < 0 && b < 0 && a < math.MaxInt64/b {
 		return math.MaxInt64
 	}
-	// For negative result (one negative)
+	// For negative result (a positive, b negative)
 	if a > 0 && b < 0 && b < math.MinInt64/a {
 		return math.MinInt64
 	}
-
+	// For negative result (a negative, b positive)
 	if a < 0 && b > 0 && a < math.MinInt64/b {
 		return math.MinInt64
 	}
