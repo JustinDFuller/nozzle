@@ -344,7 +344,10 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	var allowRate int64
 
 	if n.allowed != 0 {
-		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate = (n.allowed * 100) / total
+		}
 	}
 
 	var allow bool
@@ -415,7 +418,10 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	var allowRate int64
 
 	if n.allowed != 0 {
-		allowRate = int64((float64(n.allowed) / float64(n.allowed+n.blocked)) * 100)
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate = (n.allowed * 100) / total
+		}
 	}
 
 	var allow bool
