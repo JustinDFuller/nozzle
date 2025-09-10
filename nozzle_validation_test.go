@@ -106,7 +106,6 @@ func TestNewValidation(t *testing.T) {
 			t.Parallel()
 
 			noz, err := nozzle.New(tt.options)
-
 			if tt.expectedErr != nil {
 				if !errors.Is(err, tt.expectedErr) {
 					t.Errorf("expected error %v, got %v", tt.expectedErr, err)
@@ -118,6 +117,7 @@ func TestNewValidation(t *testing.T) {
 
 				return // Early return for error cases
 			}
+
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -127,6 +127,7 @@ func TestNewValidation(t *testing.T) {
 
 				return
 			}
+
 			if err := noz.Close(); err != nil {
 				t.Errorf("error closing nozzle: %v", err)
 			}
@@ -146,6 +147,7 @@ func TestValidationErrorMessages(t *testing.T) {
 	if nozzle.ErrInvalidInterval.Error() != expectedMsg {
 		t.Errorf("ErrInvalidInterval message = %q, want %q", nozzle.ErrInvalidInterval.Error(), expectedMsg)
 	}
+
 	if !errors.Is(nozzle.ErrInvalidFailurePercent, nozzle.ErrInvalidFailurePercent) {
 		t.Error("ErrInvalidFailurePercent should be comparable with errors.Is")
 	}
@@ -167,6 +169,7 @@ func TestValidationErrorsAreSentinel(t *testing.T) {
 	if !errors.Is(err, nozzle.ErrInvalidInterval) {
 		t.Errorf("zero interval should return ErrInvalidInterval, got %v", err)
 	}
+
 	_, err = nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: -10,
@@ -182,10 +185,11 @@ func countGoroutines() int {
 }
 
 // TestNewDoesNotLeakOnValidationError verifies that no goroutines are leaked when validation fails.
-func TestNewDoesNotLeakOnValidationError(t *testing.T) {
+func TestNewDoesNotLeakOnValidationError(t *testing.T) { //nolint:paralleltest // Cannot run in parallel - counts goroutines
 	time.Sleep(100 * time.Millisecond)
-	
+
 	initialGoroutines := countGoroutines()
+
 	for range 10 {
 		_, err := nozzle.New(nozzle.Options[any]{
 			Interval:              0, // Invalid
@@ -203,6 +207,7 @@ func TestNewDoesNotLeakOnValidationError(t *testing.T) {
 			t.Fatal("expected error for negative failure percent")
 		}
 	}
+
 	time.Sleep(10 * time.Millisecond)
 
 	finalGoroutines := countGoroutines()
