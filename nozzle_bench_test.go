@@ -10,7 +10,10 @@ import (
 )
 
 func BenchmarkNozzle_DoBool_Open(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -30,7 +33,10 @@ func BenchmarkNozzle_DoBool_Open(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -50,7 +56,10 @@ func BenchmarkNozzle_DoBool_Closed(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoBool_Half(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -70,7 +79,10 @@ func BenchmarkNozzle_DoBool_Half(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Open(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -95,7 +107,10 @@ func BenchmarkNozzle_DoError_Open(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Closed(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -120,7 +135,10 @@ func BenchmarkNozzle_DoError_Closed(b *testing.B) {
 }
 
 func BenchmarkNozzle_DoError_Half(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	noz, err := nozzle.New(nozzle.Options[any]{Interval: time.Millisecond * 10, AllowedFailurePercent: 50})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -161,7 +179,7 @@ func BenchmarkNozzle_DoBool_Control(b *testing.B) {
 func BenchmarkNozzle_StateSnapshot(b *testing.B) {
 	var snapshotCount atomic.Int64
 
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Millisecond * 10,
 		AllowedFailurePercent: 30,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
@@ -176,6 +194,9 @@ func BenchmarkNozzle_StateSnapshot(b *testing.B) {
 			snapshotCount.Add(1)
 		},
 	})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -206,11 +227,14 @@ func BenchmarkNozzle_StateSnapshot(b *testing.B) {
 
 // BenchmarkNozzle_StateSnapshot_NoCallback measures baseline performance without callback.
 func BenchmarkNozzle_StateSnapshot_NoCallback(b *testing.B) {
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Millisecond * 10,
 		AllowedFailurePercent: 30,
 		// No OnStateChange callback
 	})
+	if err != nil {
+		b.Fatalf("unexpected error: %v", err)
+	}
 
 	b.Cleanup(func() {
 		if err := noz.Close(); err != nil {

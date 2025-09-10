@@ -72,10 +72,13 @@ func TestSuccessRate(t *testing.T) {
 func TestConcurrencyBool(t *testing.T) {
 	t.Parallel()
 
-	noz := New(Options[any]{
+	noz, err := New(Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -130,10 +133,13 @@ func TestConcurrencyBool(t *testing.T) {
 func TestConcurrencyError(t *testing.T) {
 	t.Parallel()
 
-	noz := New(Options[any]{
+	noz, err := New(Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -204,10 +210,15 @@ func TestNozzleNoGoroutineLeak(t *testing.T) { //nolint:paralleltest // This tes
 	// Create multiple nozzles
 	nozzles := make([]*Nozzle[any], 10)
 	for i := range nozzles {
-		nozzles[i] = New(Options[any]{
+		noz, err := New(Options[any]{
 			Interval:              100 * time.Millisecond,
 			AllowedFailurePercent: 50,
 		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		nozzles[i] = noz
 	}
 
 	// Verify goroutines were created
@@ -242,10 +253,13 @@ func TestNozzleNoGoroutineLeak(t *testing.T) { //nolint:paralleltest // This tes
 func TestCloseIdempotent(t *testing.T) {
 	t.Parallel()
 
-	n := New(Options[any]{
+	n, err := New(Options[any]{
 		Interval:              100 * time.Millisecond,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Call Close multiple times
 	for i := range 5 {
@@ -259,10 +273,13 @@ func TestCloseIdempotent(t *testing.T) {
 func TestConcurrentClose(t *testing.T) {
 	t.Parallel()
 
-	n := New(Options[any]{
+	n, err := New(Options[any]{
 		Interval:              100 * time.Millisecond,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	var wg sync.WaitGroup
 	// Launch multiple goroutines to close concurrently
@@ -285,10 +302,13 @@ func TestConcurrentClose(t *testing.T) {
 func TestOperationsAfterClose(t *testing.T) {
 	t.Parallel()
 
-	nozzle := New(Options[any]{
+	nozzle, err := New(Options[any]{
 		Interval:              100 * time.Millisecond,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	// Close the nozzle
 	if err := nozzle.Close(); err != nil {

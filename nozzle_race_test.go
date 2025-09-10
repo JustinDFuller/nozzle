@@ -16,7 +16,7 @@ func TestNozzleSnapshotFieldValidation(t *testing.T) {
 
 	var validationCount atomic.Int32
 
-	noz := nozzle.New(nozzle.Options[string]{
+	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
@@ -56,6 +56,9 @@ func TestNozzleSnapshotFieldValidation(t *testing.T) {
 			}
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -102,7 +105,7 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 		wg            sync.WaitGroup
 	)
 
-	noz := nozzle.New(nozzle.Options[string]{
+	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
 		OnStateChange: func(_ nozzle.StateSnapshot) {
@@ -110,6 +113,9 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 			callbackCount.Add(1)
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -206,11 +212,14 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 
 			done := make(chan struct{})
 
-			noz := nozzle.New(nozzle.Options[string]{
+			noz, err := nozzle.New(nozzle.Options[string]{
 				Interval:              10 * time.Millisecond,
 				AllowedFailurePercent: 50,
 				OnStateChange:         tt.callback,
 			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
 			defer func() {
 				if err := noz.Close(); err != nil {
@@ -253,7 +262,7 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 		snapshotMutex sync.Mutex
 	)
 
-	noz := nozzle.New(nozzle.Options[string]{
+	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
@@ -280,6 +289,9 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 			}
 		},
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {

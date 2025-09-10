@@ -312,10 +312,13 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 		t.Skip("skipping test in short mode.")
 	}
 
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -385,10 +388,13 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 		t.Skip("skipping test in short mode.")
 	}
 
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
