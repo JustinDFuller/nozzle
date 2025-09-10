@@ -5,6 +5,7 @@
 package nozzle
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -380,6 +381,99 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	return res, ok
 }
 
+// DoBoolContext executes a callback function while respecting the Nozzle's state and context cancellation.
+// It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
+//
+// The context is checked before executing the callback. If the context is already cancelled or times out,
+// the method returns immediately with false without affecting the nozzle's state.
+//
+// If the Nozzle is closed, DoBoolContext returns (zero value, false) immediately without calling the callback.
+//
+// The callback function receives the context and should return a boolean value.
+// If the callback returns true, the success method will be called, otherwise the failure method will be called.
+//
+// Example:
+//
+//	var n nozzle.Nozzle[*example]
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//
+//	res, ok := n.DoBoolContext(ctx, func(ctx context.Context) (*example, bool) {
+//		result, err := someFuncThatCanFailWithContext(ctx)
+//		return result, err == nil
+//	})
+//	if !ok {
+//		// handle failure, context cancellation, or closed nozzle.
+//	}
+//
+//	fmt.Println(res) // use res.
+func (n *Nozzle[T]) DoBoolContext(ctx context.Context, callback func(context.Context) (T, bool)) (T, bool) {
+	// Check context before acquiring lock
+	select {
+	case <-ctx.Done():
+		return *new(T), false
+	default:
+	}
+
+	n.mut.Lock()
+
+	// Check if nozzle is closed
+	if n.closed {
+		n.mut.Unlock()
+
+		return *new(T), false
+	}
+
+	var allowRate int64
+
+	if n.allowed != 0 {
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate = (n.allowed * 100) / total
+		}
+	}
+
+	var allow bool
+
+	if n.flowRate == 100 {
+		allow = true
+	} else if n.flowRate > 0 {
+		allow = allowRate < n.flowRate
+	}
+
+	if !allow {
+		n.blocked++
+		n.mut.Unlock()
+
+		return *new(T), false
+	}
+
+	n.allowed++
+
+	n.mut.Unlock()
+
+	// Check context again before executing callback
+	select {
+	case <-ctx.Done():
+		// Context cancelled after being allowed through, still count as failure
+		n.failure()
+
+		return *new(T), false
+	default:
+	}
+
+	res, ok := callback(ctx)
+
+	if ok {
+		n.success()
+	} else {
+		n.failure()
+	}
+
+	return res, ok
+}
+
 // DoError executes a callback function while respecting the Nozzle's state.
 // It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
 //
@@ -443,6 +537,102 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	n.mut.Unlock()
 
 	res, err := callback()
+	if err != nil {
+		n.failure()
+	} else {
+		n.success()
+	}
+
+	return res, err
+}
+
+// DoErrorContext executes a callback function while respecting the Nozzle's state and context cancellation.
+// It monitors how many calls have been allowed and compares this with the flowRate to determine if this particular call will be permitted.
+//
+// The context is checked before executing the callback. If the context is already cancelled or times out,
+// the method returns immediately with the context's error without affecting the nozzle's state.
+//
+// If the Nozzle is closed, DoErrorContext returns (zero value, ErrClosed) immediately without calling the callback.
+//
+// The callback function receives the context and should return an error.
+// If the callback returns nil, the success method will be called. If the callback returns an error, the failure method will be called.
+// Context cancellation errors from the callback are treated as failures.
+//
+// Example:
+//
+//	var n nozzle.Nozzle[*example]
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//
+//	res, err := n.DoErrorContext(ctx, func(ctx context.Context) (*example, error) {
+//		ex, err := someFuncThatCanFailWithContext(ctx)
+//		return ex, err
+//	})
+//	if errors.Is(err, context.DeadlineExceeded) {
+//		// handle timeout
+//	} else if errors.Is(err, nozzle.ErrClosed) {
+//		// nozzle is closed
+//	} else if err != nil {
+//		// handle other error
+//	}
+//
+//	fmt.Print(res) // Use the result
+func (n *Nozzle[T]) DoErrorContext(ctx context.Context, callback func(context.Context) (T, error)) (T, error) {
+	// Check context before acquiring lock
+	select {
+	case <-ctx.Done():
+		return *new(T), ctx.Err()
+	default:
+	}
+
+	n.mut.Lock()
+
+	// Check if nozzle is closed
+	if n.closed {
+		n.mut.Unlock()
+
+		return *new(T), ErrClosed
+	}
+
+	var allowRate int64
+
+	if n.allowed != 0 {
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate = (n.allowed * 100) / total
+		}
+	}
+
+	var allow bool
+
+	if n.flowRate == 100 {
+		allow = true
+	} else if n.flowRate > 0 {
+		allow = allowRate < n.flowRate
+	}
+
+	if !allow {
+		n.blocked++
+		n.mut.Unlock()
+
+		return *new(T), ErrBlocked
+	}
+
+	n.allowed++
+	n.mut.Unlock()
+
+	// Check context again before executing callback
+	select {
+	case <-ctx.Done():
+		// Context cancelled after being allowed through, still count as failure
+		n.failure()
+
+		return *new(T), ctx.Err()
+	default:
+	}
+
+	res, err := callback(ctx)
 	if err != nil {
 		n.failure()
 	} else {

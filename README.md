@@ -171,6 +171,49 @@ After closing:
 - No callbacks are executed once the nozzle is closed
 - The nozzle becomes completely non-functional to prevent resource usage
 
+### Context Support
+
+The nozzle provides context-aware methods for operations that need to respect context cancellation or timeouts:
+
+```go
+// Using DoErrorContext with timeout
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+res, err := n.DoErrorContext(ctx, func(ctx context.Context) (*http.Response, error) {
+    req, _ := http.NewRequestWithContext(ctx, "GET", "https://api.example.com/data", nil)
+    return http.DefaultClient.Do(req)
+})
+
+if errors.Is(err, context.DeadlineExceeded) {
+    log.Println("Request timed out")
+} else if errors.Is(err, nozzle.ErrBlocked) {
+    log.Println("Request was throttled")
+}
+```
+
+```go
+// Using DoBoolContext with cancellation
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+res, ok := n.DoBoolContext(ctx, func(ctx context.Context) (*Data, bool) {
+    select {
+    case <-ctx.Done():
+        return nil, false
+    default:
+        data, err := fetchData(ctx)
+        return data, err == nil
+    }
+})
+```
+
+Context methods provide:
+- Immediate return if context is already cancelled (without affecting nozzle state)
+- Context is checked before and after acquiring the nozzle's lock
+- Context cancellation during callback execution is treated as a failure
+- Full compatibility with standard Go context patterns
+
 ### Generics
 
 As you can see, this package uses generics. This allows the Nozzle's methods to return the same type as the function you pass to it. This allows the Nozzle to perform its work without interrupting the control-flow of your application.

@@ -1,6 +1,8 @@
 package nozzle_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -338,4 +340,147 @@ func Example_closedBehavior() {
 	// Output:
 	// DoBool result: 0, ok: false
 	// DoError result: 0, error: nozzle: closed
+}
+
+// ExampleNozzle_DoErrorContext demonstrates using DoErrorContext with context cancellation.
+func ExampleNozzle_DoErrorContext() {
+	noz := nozzle.New(nozzle.Options[string]{
+		Interval:              time.Millisecond * 100,
+		AllowedFailurePercent: 50,
+	})
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			fmt.Printf("Error closing nozzle: %v\n", err)
+		}
+	}()
+
+	// Create a context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Successful operation with context
+	res, err := noz.DoErrorContext(ctx, func(ctx context.Context) (string, error) {
+		// Simulate some work that respects context
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-time.After(10 * time.Millisecond):
+			return "success", nil
+		}
+	})
+
+	fmt.Printf("Result=\"%s\" Error=\"%v\"\n", res, err)
+
+	// Operation that would timeout (but won't in this example)
+	res, err = noz.DoErrorContext(ctx, func(_ context.Context) (string, error) {
+		return "quick", nil
+	})
+
+	fmt.Printf("Result=\"%s\" Error=\"%v\"\n", res, err)
+
+	// Output:
+	// Result="success" Error="<nil>"
+	// Result="quick" Error="<nil>"
+}
+
+// ExampleNozzle_DoBoolContext demonstrates using DoBoolContext with context support.
+func ExampleNozzle_DoBoolContext() {
+	noz := nozzle.New(nozzle.Options[int]{
+		Interval:              time.Millisecond * 100,
+		AllowedFailurePercent: 50,
+	})
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			fmt.Printf("Error closing nozzle: %v\n", err)
+		}
+	}()
+
+	ctx := context.Background()
+
+	// Successful operation
+	res, ok := noz.DoBoolContext(ctx, func(_ context.Context) (int, bool) {
+		return 42, true
+	})
+
+	fmt.Printf("Result=%d OK=%v\n", res, ok)
+
+	// Failed operation
+	res, ok = noz.DoBoolContext(ctx, func(_ context.Context) (int, bool) {
+		return 0, false
+	})
+
+	fmt.Printf("Result=%d OK=%v\n", res, ok)
+
+	// Output:
+	// Result=42 OK=true
+	// Result=0 OK=false
+}
+
+// ExampleNozzle_DoErrorContext_timeout demonstrates handling timeouts with DoErrorContext.
+func ExampleNozzle_DoErrorContext_timeout() {
+	noz := nozzle.New(nozzle.Options[string]{
+		Interval:              time.Millisecond * 100,
+		AllowedFailurePercent: 50,
+	})
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			fmt.Printf("Error closing nozzle: %v\n", err)
+		}
+	}()
+
+	// Create a context that will timeout quickly
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+
+	// Wait for timeout to occur
+	time.Sleep(2 * time.Millisecond)
+
+	// Try to execute an operation with expired context
+	res, err := noz.DoErrorContext(ctx, func(_ context.Context) (string, error) {
+		// This callback won't be executed because context is already cancelled
+		return "should not execute", nil
+	})
+	if errors.Is(err, context.DeadlineExceeded) {
+		fmt.Printf("Operation timed out as expected\n")
+	}
+
+	fmt.Printf("Result=\"%s\"\n", res)
+
+	// Output:
+	// Operation timed out as expected
+	// Result=""
+}
+
+// ExampleNozzle_DoBoolContext_cancellation demonstrates context cancellation with DoBoolContext.
+func ExampleNozzle_DoBoolContext_cancellation() {
+	noz := nozzle.New(nozzle.Options[string]{
+		Interval:              time.Millisecond * 100,
+		AllowedFailurePercent: 50,
+	})
+
+	defer func() {
+		if err := noz.Close(); err != nil {
+			fmt.Printf("Error closing nozzle: %v\n", err)
+		}
+	}()
+
+	// Create a cancellable context
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel the context immediately
+	cancel()
+
+	// Try to execute an operation with cancelled context
+	res, ok := noz.DoBoolContext(ctx, func(_ context.Context) (string, bool) {
+		// This callback won't be executed because context is already cancelled
+		return "should not execute", true
+	})
+
+	fmt.Printf("Result=\"%s\" OK=%v\n", res, ok)
+
+	// Output:
+	// Result="" OK=false
 }
