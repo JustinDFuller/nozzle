@@ -15,10 +15,13 @@ const maxExpectedChangeBy = 100
 func TestNozzleBoundaryBehavior(t *testing.T) {
 	t.Parallel()
 
-	noz := New[any](Options[any]{
+	noz, err := New[any](Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 10,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -109,10 +112,13 @@ func TestNozzleBoundaryBehavior(t *testing.T) {
 func TestNozzleRecoveryFromBoundaries(t *testing.T) {
 	t.Parallel()
 
-	noz := New[any](Options[any]{
+	noz, err := New[any](Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 10,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {
@@ -203,10 +209,13 @@ func TestNozzleRecoveryFromBoundaries(t *testing.T) {
 func TestNozzleSymmetricBehavior(t *testing.T) {
 	t.Parallel()
 
-	noz := New[any](Options[any]{
+	noz, err := New[any](Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 10,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	t.Cleanup(func() {
 		if err := noz.Close(); err != nil {

@@ -8,10 +8,15 @@ import (
 )
 
 func ExampleNew() {
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -31,10 +36,15 @@ func ExampleNew() {
 }
 
 func ExampleNozzle_DoBool() {
-	noz := nozzle.New(nozzle.Options[int]{
+	noz, err := nozzle.New(nozzle.Options[int]{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -69,10 +79,15 @@ func ExampleNozzle_DoBool() {
 }
 
 func ExampleNozzle_DoError() {
-	noz := nozzle.New(nozzle.Options[string]{
+	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              time.Millisecond * 100,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -111,10 +126,15 @@ func ExampleNozzle_State() {
 		name string
 	}
 
-	noz := nozzle.New(nozzle.Options[*example]{
+	noz, err := nozzle.New(nozzle.Options[*example]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 0,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -153,10 +173,15 @@ func ExampleNozzle_State() {
 }
 
 func ExampleNozzle_FlowRate() {
-	noz := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Millisecond * 50,
 		AllowedFailurePercent: 10,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -204,10 +229,15 @@ func ExampleNozzle_FlowRate() {
 }
 
 func ExampleNozzle_Wait() {
-	noz := nozzle.New(nozzle.Options[map[string]any]{
+	noz, err := nozzle.New(nozzle.Options[map[string]any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -233,7 +263,7 @@ func ExampleNozzle_Wait() {
 }
 
 func ExampleOptions() {
-	noz := nozzle.New(nozzle.Options[[]string]{
+	noz, err := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(snapshot nozzle.StateSnapshot) {
@@ -243,6 +273,11 @@ func ExampleOptions() {
 			fmt.Printf("Flow Rate: %d\n", snapshot.FlowRate)
 		},
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	defer func() {
 		if err := noz.Close(); err != nil {
@@ -281,10 +316,15 @@ func ExampleOptions() {
 // Always use defer n.Close() after creating a Nozzle to ensure resources are released.
 func Example_cleanup() {
 	// Create a nozzle
-	n := nozzle.New(nozzle.Options[string]{
+	n, err := nozzle.New(nozzle.Options[string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	// Always close the nozzle when done
 	defer func() {
@@ -311,25 +351,30 @@ func Example_cleanup() {
 // and ErrClosed without executing the callback function.
 func Example_closedBehavior() {
 	// Create a nozzle
-	n := nozzle.New(nozzle.Options[int]{
+	noz, err := nozzle.New(nozzle.Options[int]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
 	})
+	if err != nil {
+		fmt.Printf("Error creating nozzle: %v\n", err)
+
+		return
+	}
 
 	// Close the nozzle
-	if err := n.Close(); err != nil {
+	if err := noz.Close(); err != nil {
 		fmt.Printf("Error closing nozzle: %v\n", err)
 	}
 
 	// DoBool on closed nozzle returns zero value and false
-	resultBool, ok := n.DoBool(func() (int, bool) {
+	resultBool, ok := noz.DoBool(func() (int, bool) {
 		// This callback will not be executed
 		return 42, true
 	})
 	fmt.Printf("DoBool result: %d, ok: %v\n", resultBool, ok)
 
 	// DoError on closed nozzle returns zero value and ErrClosed
-	resultError, err := n.DoError(func() (int, error) {
+	resultError, err := noz.DoError(func() (int, error) {
 		// This callback will not be executed
 		return 42, nil
 	})

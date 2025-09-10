@@ -35,6 +35,12 @@ var ErrBlocked = errors.New("nozzle: blocked")
 // or return false (for DoBool).
 var ErrClosed = errors.New("nozzle: closed")
 
+// ErrInvalidInterval is returned when the Interval is zero or negative.
+var ErrInvalidInterval = errors.New("nozzle: interval must be positive")
+
+// ErrInvalidFailurePercent is returned when AllowedFailurePercent is outside the valid range [0, 100].
+var ErrInvalidFailurePercent = errors.New("nozzle: allowed failure percent must be between 0 and 100")
+
 // Nozzle manages the rate of allowed operations and adapts based on success and failure rates.
 // It uses a flow rate to control the percentage of allowed operations and adjusts its state based on the observed failure rate.
 // The Nozzle implements io.Closer for resource cleanup.
@@ -239,16 +245,33 @@ const (
 // The Nozzle contains a mutex, so it must not be copied after first creation.
 // If you do, you will receive an error from `go vet`.
 //
+// Returns an error if the options are invalid:
+//   - ErrInvalidInterval if Interval is zero or negative
+//   - ErrInvalidFailurePercent if AllowedFailurePercent is not in range [0, 100]
+//
 // Example:
 //
-//	n := nozzle.New(nozzle.Options[any]{
+//	n, err := nozzle.New(nozzle.Options[any]{
 //		Interval: time.Second,
 //		AllowedFailurePercent: 50,
 //	})
+//	if err != nil {
+//		// handle error
+//	}
 //	defer n.Close()
 //
 // See docs of nozzle.Options for details about each Option field.
-func New[T any](options Options[T]) *Nozzle[T] {
+func New[T any](options Options[T]) (*Nozzle[T], error) {
+	// Validate interval
+	if options.Interval <= 0 {
+		return nil, ErrInvalidInterval
+	}
+
+	// Validate AllowedFailurePercent
+	if options.AllowedFailurePercent < 0 || options.AllowedFailurePercent > 100 {
+		return nil, ErrInvalidFailurePercent
+	}
+
 	n := Nozzle[T]{
 		flowRate:   100,
 		Options:    options,
@@ -259,7 +282,7 @@ func New[T any](options Options[T]) *Nozzle[T] {
 
 	go n.tick()
 
-	return &n
+	return &n, nil
 }
 
 // tick periodically invokes the calculate method based on the Nozzle's interval.

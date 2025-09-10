@@ -85,10 +85,13 @@ import (
 )
 
 func main() {
-    n := nozzle.New(nozzle.Options[*http.Response]{
+    n, err := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
+    if err != nil {
+        log.Fatal(err)
+    }
     defer n.Close()
 
     for i := 0; i < 1000; i++ {
@@ -122,10 +125,13 @@ import (
 )
 
 func main() {
-    n := nozzle.New(nozzle.Options[*http.Response]{
+    n, err := nozzle.New(nozzle.Options[*http.Response]{
         Interval:              time.Second,
         AllowedFailurePercent: 50,
     })
+    if err != nil {
+        log.Fatal(err)
+    }
     defer n.Close()
 
     for i := 0; i < 1000; i++ {
@@ -150,10 +156,13 @@ func main() {
 Always close the nozzle when done to prevent goroutine leaks:
 
 ```go
-n := nozzle.New(nozzle.Options[any]{
+n, err := nozzle.New(nozzle.Options[any]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
 })
+if err != nil {
+    log.Fatal(err)
+}
 defer n.Close()
 
 // Use the nozzle...
@@ -182,7 +191,7 @@ You may want to collect metrics to help you observe when your nozzle is opening 
 The callback receives a `StateSnapshot` containing an immutable copy of the nozzle's state, ensuring thread-safe access to state information:
 
 ```go
-nozzle.New(nozzle.Options[*example]{
+n, err := nozzle.New(nozzle.Options[*example]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
     OnStateChange: func(snapshot nozzle.StateSnapshot) {
