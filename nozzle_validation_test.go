@@ -107,7 +107,6 @@ func TestNewValidation(t *testing.T) {
 
 			noz, err := nozzle.New(tt.options)
 
-			// Check error expectations
 			if tt.expectedErr != nil {
 				if !errors.Is(err, tt.expectedErr) {
 					t.Errorf("expected error %v, got %v", tt.expectedErr, err)
@@ -119,8 +118,6 @@ func TestNewValidation(t *testing.T) {
 
 				return // Early return for error cases
 			}
-
-			// Check success expectations
 			if err != nil {
 				t.Errorf("unexpected error: %v", err)
 			}
@@ -130,8 +127,6 @@ func TestNewValidation(t *testing.T) {
 
 				return
 			}
-
-			// Clean up the nozzle if it was created successfully
 			if err := noz.Close(); err != nil {
 				t.Errorf("error closing nozzle: %v", err)
 			}
@@ -143,7 +138,6 @@ func TestNewValidation(t *testing.T) {
 func TestValidationErrorMessages(t *testing.T) {
 	t.Parallel()
 
-	// Test ErrInvalidInterval message
 	if !errors.Is(nozzle.ErrInvalidInterval, nozzle.ErrInvalidInterval) {
 		t.Error("ErrInvalidInterval should be comparable with errors.Is")
 	}
@@ -152,8 +146,6 @@ func TestValidationErrorMessages(t *testing.T) {
 	if nozzle.ErrInvalidInterval.Error() != expectedMsg {
 		t.Errorf("ErrInvalidInterval message = %q, want %q", nozzle.ErrInvalidInterval.Error(), expectedMsg)
 	}
-
-	// Test ErrInvalidFailurePercent message
 	if !errors.Is(nozzle.ErrInvalidFailurePercent, nozzle.ErrInvalidFailurePercent) {
 		t.Error("ErrInvalidFailurePercent should be comparable with errors.Is")
 	}
@@ -168,7 +160,6 @@ func TestValidationErrorMessages(t *testing.T) {
 func TestValidationErrorsAreSentinel(t *testing.T) {
 	t.Parallel()
 
-	// Create nozzle with zero interval
 	_, err := nozzle.New(nozzle.Options[any]{
 		Interval:              0,
 		AllowedFailurePercent: 50,
@@ -176,8 +167,6 @@ func TestValidationErrorsAreSentinel(t *testing.T) {
 	if !errors.Is(err, nozzle.ErrInvalidInterval) {
 		t.Errorf("zero interval should return ErrInvalidInterval, got %v", err)
 	}
-
-	// Create nozzle with invalid failure percent
 	_, err = nozzle.New(nozzle.Options[any]{
 		Interval:              time.Second,
 		AllowedFailurePercent: -10,
@@ -194,15 +183,9 @@ func countGoroutines() int {
 
 // TestNewDoesNotLeakOnValidationError verifies that no goroutines are leaked when validation fails.
 func TestNewDoesNotLeakOnValidationError(t *testing.T) {
-	// Cannot run in parallel because we're counting goroutines
-	// t.Parallel()
-
-	// Let any existing goroutines settle
 	time.Sleep(100 * time.Millisecond)
 	
 	initialGoroutines := countGoroutines()
-
-	// Try to create multiple nozzles with invalid options
 	for range 10 {
 		_, err := nozzle.New(nozzle.Options[any]{
 			Interval:              0, // Invalid
@@ -220,8 +203,6 @@ func TestNewDoesNotLeakOnValidationError(t *testing.T) {
 			t.Fatal("expected error for negative failure percent")
 		}
 	}
-
-	// Give a moment for any goroutines to start (they shouldn't)
 	time.Sleep(10 * time.Millisecond)
 
 	finalGoroutines := countGoroutines()

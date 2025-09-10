@@ -262,12 +262,10 @@ const (
 //
 // See docs of nozzle.Options for details about each Option field.
 func New[T any](options Options[T]) (*Nozzle[T], error) {
-	// Validate interval
 	if options.Interval <= 0 {
 		return nil, ErrInvalidInterval
 	}
 
-	// Validate AllowedFailurePercent
 	if options.AllowedFailurePercent < 0 || options.AllowedFailurePercent > 100 {
 		return nil, ErrInvalidFailurePercent
 	}
