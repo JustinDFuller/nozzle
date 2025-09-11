@@ -363,29 +363,15 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 		return *new(T), false
 	}
 
+	// Pure probabilistic rate limiting: every request has exactly flowRate% chance
+	// This unified approach eliminates all edge cases and special handling
 	var allow bool
-
-	// Special case: first request of interval uses probabilistic decision
-	// This ensures the first request respects the flow rate instead of always being allowed
-	if n.allowed == 0 && n.blocked == 0 && n.flowRate < 100 && n.flowRate > 0 {
-		// Probabilistic decision: request has exactly flowRate% chance of being allowed
+	if n.flowRate >= 100 {
+		allow = true
+	} else if n.flowRate > 0 {
 		allow = rand.Int63n(100) < n.flowRate
 	} else {
-		// Normal deterministic logic based on cumulative rates
-		var allowRate int64
-
-		// Calculate allow rate from current counters
-		total := n.allowed + n.blocked
-		if total > 0 {
-			allowRate = (n.allowed * 100) / total
-		}
-		// If no requests yet (shouldn't happen with the special case above), use 0
-
-		if n.flowRate == 100 {
-			allow = true
-		} else if n.flowRate > 0 {
-			allow = allowRate < n.flowRate
-		}
+		allow = false
 	}
 
 	if !allow {
@@ -445,29 +431,15 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 		return *new(T), ErrClosed
 	}
 
+	// Pure probabilistic rate limiting: every request has exactly flowRate% chance
+	// This unified approach eliminates all edge cases and special handling
 	var allow bool
-
-	// Special case: first request of interval uses probabilistic decision
-	// This ensures the first request respects the flow rate instead of always being allowed
-	if n.allowed == 0 && n.blocked == 0 && n.flowRate < 100 && n.flowRate > 0 {
-		// Probabilistic decision: request has exactly flowRate% chance of being allowed
+	if n.flowRate >= 100 {
+		allow = true
+	} else if n.flowRate > 0 {
 		allow = rand.Int63n(100) < n.flowRate
 	} else {
-		// Normal deterministic logic based on cumulative rates
-		var allowRate int64
-
-		// Calculate allow rate from current counters
-		total := n.allowed + n.blocked
-		if total > 0 {
-			allowRate = (n.allowed * 100) / total
-		}
-		// If no requests yet (shouldn't happen with the special case above), use 0
-
-		if n.flowRate == 100 {
-			allow = true
-		} else if n.flowRate > 0 {
-			allow = allowRate < n.flowRate
-		}
+		allow = false
 	}
 
 	if !allow {

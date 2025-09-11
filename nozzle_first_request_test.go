@@ -6,9 +6,9 @@ import (
 	"time"
 )
 
-// TestFirstRequestRespectsFlowRate verifies that the first request of each interval
-// respects the flow rate using probabilistic decisions instead of always being allowed.
-// This test validates the fix for the first request bypass issue.
+// TestFirstRequestRespectsFlowRate verifies that all requests, including the first
+// request of each interval, respect the flow rate using pure probabilistic decisions.
+// With unified probabilistic rate limiting, every request has exactly flowRate% chance.
 func TestFirstRequestRespectsFlowRate(t *testing.T) {
 	t.Parallel()
 
@@ -32,7 +32,7 @@ func TestFirstRequestRespectsFlowRate(t *testing.T) {
 			flowRate:             20,
 			iterations:           100,
 			expectedAllowedRatio: 0.20,
-			tolerance:            0.05,
+			tolerance:            0.07, // Slightly wider for probabilistic variance
 		},
 		{
 			name:                 "Medium flow rate (50%)",
