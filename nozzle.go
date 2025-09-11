@@ -571,8 +571,10 @@ func (n *Nozzle[T]) reset() {
 	n.start = time.Now()
 	n.successes = 0
 	n.failures = 0
-	n.allowed = 0
-	n.blocked = 0
+	// Decay allowed and blocked counters instead of resetting to maintain historical context
+	// This prevents the first request of each interval from bypassing throttling
+	n.allowed = n.allowed / 10
+	n.blocked = n.blocked / 10
 }
 
 // success increments the count of successful operations.
