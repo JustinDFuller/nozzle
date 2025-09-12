@@ -6,7 +6,7 @@ package nozzle
 
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"time"
 )
@@ -369,7 +369,7 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 	if n.flowRate >= 100 {
 		allow = true
 	} else if n.flowRate > 0 {
-		allow = rand.Int63n(100) < n.flowRate
+		allow = rand.N(int64(100)) < n.flowRate //nolint:gosec // math/rand/v2 is appropriate for rate limiting
 	} else {
 		allow = false
 	}
@@ -437,7 +437,7 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 	if n.flowRate >= 100 {
 		allow = true
 	} else if n.flowRate > 0 {
-		allow = rand.Int63n(100) < n.flowRate
+		allow = rand.N(int64(100)) < n.flowRate //nolint:gosec // math/rand/v2 is appropriate for rate limiting
 	} else {
 		allow = false
 	}
