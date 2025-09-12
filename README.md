@@ -9,7 +9,7 @@ The Hose Nozzle Pattern
 
 ## TL;DR
 
-It allows/disallows actions gradually (like a hose nozzel) instead of totally, (like a switch).
+It allows/disallows actions gradually (like a hose nozzle) instead of totally, (like a switch).
 
 ## 📖 Table of Contents 📖
 * [Explanation](#what)
@@ -35,7 +35,7 @@ However, in many systems, particularly systems that experience errors due to ext
 
 ### Example Scenario
 
-Imagine a scenario where an application is handing 1000 requests per second (RPS). Suddenly, it receives 10,000 requests per second. Now, assume the application takes somewhere between a few seconds and a minute to scale up. Until it scales up, it can only handle a bit more than 1000 requests per second, the rest return errors.
+Imagine a scenario where an application is handling 1000 requests per second (RPS). Suddenly, it receives 10,000 requests per second. Now, assume the application takes somewhere between a few seconds and a minute to scale up. Until it scales up, it can only handle a bit more than 1000 requests per second, the rest return errors.
 
 If you are using the circuit breaker pattern, and if you configured your circuit breaker to trip above a 10% error rate, you will likely go from 1000 RPS to 0 RPS. Then, once the application scales up, you may jump up to 10,000 RPS. Or, if the surge has passed, you will return to 1000 RPS.
 
@@ -138,7 +138,7 @@ func main() {
         res, ok := n.DoBool(func() (*http.Response, bool) {
             res, err := http.Get("https://google.com")
 
-            return res, err != nil && res.StatusCode == http.StatusOK
+            return res, err == nil && res.StatusCode == http.StatusOK
         })
         if !ok {
             log.Println("Request failed")
@@ -273,4 +273,4 @@ wg.Wait()
 
 ## Documentation
 
-Please refer to the go documentatio hosted on [pkg.go.dev](https://pkg.go.dev/github.com/justindfuller/nozzle). You can see [all available types and methods](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-index) and [runnable examples](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-examples).
+Please refer to the go documentation hosted on [pkg.go.dev](https://pkg.go.dev/github.com/justindfuller/nozzle). You can see [all available types and methods](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-index) and [runnable examples](https://pkg.go.dev/github.com/justindfuller/nozzle#pkg-examples).
