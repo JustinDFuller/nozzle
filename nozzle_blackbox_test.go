@@ -360,7 +360,7 @@ func TestNozzleDoBoolBlackbox(t *testing.T) { //nolint:tparallel // sub-tests sh
 				})
 			}
 
-			if expected := int(1000 * (float64(second.flowRate) / 100)); calls-expected > 1 || calls-expected < -1 {
+			if expected := int(1000 * (float64(second.flowRate) / 100)); calls != expected {
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
@@ -440,7 +440,7 @@ func TestNozzleDoErrorBlackbox(t *testing.T) { //nolint:tparallel // sub-tests s
 				}
 			}
 
-			if expected := int(1000 * (float64(second.flowRate) / 100)); calls-expected > 1 || calls-expected < -1 {
+			if expected := int(1000 * (float64(second.flowRate) / 100)); calls != expected {
 				t.Errorf("Calls want=%d got=%d", expected, calls)
 			}
 
