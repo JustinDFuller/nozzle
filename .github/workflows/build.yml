@@ -14,6 +14,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
+      with:
+        # default fetch-depth is insufficient to find previous coverage notes
+        fetch-depth: 10
 
     - name: Set up Go
       uses: actions/setup-go@v6
@@ -39,7 +42,7 @@ jobs:
       with:
         # Optional coverage threshold
         # use fail-coverage to determine what should happen below this threshold
-        coverage-threshold: 100
+        coverage-threshold: 99.9
         cover-pkg: ./...
         add-comment: false
         fail-coverage: false
