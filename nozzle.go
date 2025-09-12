@@ -362,21 +362,19 @@ func (n *Nozzle[T]) DoBool(callback func() (T, bool)) (T, bool) {
 		return *new(T), false
 	}
 
-	var allowRate int64
-
-	if n.allowed != 0 {
-		total := n.allowed + n.blocked
-		if total > 0 {
-			allowRate = (n.allowed * 100) / total
-		}
-	}
-
 	var allow bool
 
 	if n.flowRate == 100 {
 		allow = true
 	} else if n.flowRate > 0 {
-		allow = allowRate < n.flowRate
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate := (n.allowed * 100) / total
+			allow = allowRate < n.flowRate
+		} else {
+			// When no operations have been tracked yet, allow the operation
+			allow = true
+		}
 	}
 
 	if !allow {
@@ -436,21 +434,19 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 		return *new(T), ErrClosed
 	}
 
-	var allowRate int64
-
-	if n.allowed != 0 {
-		total := n.allowed + n.blocked
-		if total > 0 {
-			allowRate = (n.allowed * 100) / total
-		}
-	}
-
 	var allow bool
 
 	if n.flowRate == 100 {
 		allow = true
 	} else if n.flowRate > 0 {
-		allow = allowRate < n.flowRate
+		total := n.allowed + n.blocked
+		if total > 0 {
+			allowRate := (n.allowed * 100) / total
+			allow = allowRate < n.flowRate
+		} else {
+			// When no operations have been tracked yet, allow the operation
+			allow = true
+		}
 	}
 
 	if !allow {
