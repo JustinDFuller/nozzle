@@ -22,7 +22,7 @@ func TestSlowCallbackDoesNotBlockTicker(t *testing.T) {
 	)
 
 	// Create nozzle with a very short interval
-	n, err := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(_ context.Context, _ nozzle.StateSnapshot) {
@@ -35,8 +35,9 @@ func TestSlowCallbackDoesNotBlockTicker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
+
 	defer func() {
-		if err := n.Close(); err != nil {
+		if err := noz.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	}()
@@ -45,7 +46,7 @@ func TestSlowCallbackDoesNotBlockTicker(t *testing.T) {
 	go func() {
 		for i := range 15 {
 			// Force operations to trigger state changes
-			n.DoBool(func() (any, bool) {
+			noz.DoBool(func() (any, bool) {
 				return nil, i%2 == 0
 			})
 			time.Sleep(10 * time.Millisecond)
@@ -112,6 +113,7 @@ func TestCallbackPanicRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
+
 	defer func() {
 		if err := noz.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
@@ -224,7 +226,7 @@ func TestCallbackTimestampAccuracy(t *testing.T) {
 		timestamps []time.Time
 	)
 
-	n, err := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 50,
 		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
@@ -236,15 +238,16 @@ func TestCallbackTimestampAccuracy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
+
 	defer func() {
-		if err := n.Close(); err != nil {
+		if err := noz.Close(); err != nil {
 			t.Errorf("Failed to close nozzle: %v", err)
 		}
 	}()
 
 	// Trigger state changes
 	for i := range 30 {
-		n.DoBool(func() (any, bool) {
+		noz.DoBool(func() (any, bool) {
 			return nil, i%2 == 0
 		})
 		time.Sleep(10 * time.Millisecond)
