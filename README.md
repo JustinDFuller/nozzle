@@ -196,10 +196,8 @@ n, err := nozzle.New(nozzle.Options[*example]{
     AllowedFailurePercent: 50,
     OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
         // Check if nozzle is shutting down
-        select {
-        case <-ctx.Done():
+        if ctx.Err() != nil {
             return
-        default:
         }
         
         logger.Info(

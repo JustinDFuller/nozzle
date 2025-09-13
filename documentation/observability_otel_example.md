@@ -45,10 +45,8 @@ func setupNozzleWithMetrics[T any](opts nozzle.Options[T]) (*nozzle.Nozzle[T], e
     // Configure OnStateChange to update metrics
     opts.OnStateChange = func(ctx context.Context, snapshot nozzle.StateSnapshot) {
         // Check if nozzle is shutting down
-        select {
-        case <-ctx.Done():
+        if ctx.Err() != nil {
             return
-        default:
         }
         
         // Update gauge value

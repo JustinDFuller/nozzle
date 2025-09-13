@@ -207,13 +207,11 @@ type Options[T any] struct {
 	// Example - Metrics integration with cancellation check:
 	//
 	//	OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
-	//	    select {
-	//	    case <-ctx.Done():
+	//	    if ctx.Err() != nil {
 	//	        return // Nozzle is closing
-	//	    default:
-	//	        metrics.SetGauge("nozzle.flow_rate", float64(snapshot.FlowRate))
-	//	        metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
 	//	    }
+	//	    metrics.SetGauge("nozzle.flow_rate", float64(snapshot.FlowRate))
+	//	    metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
 	//	}
 	//
 	// Example - Alerting on degradation:
