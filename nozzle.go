@@ -184,8 +184,6 @@ type Options[T any] struct {
 	// state changes. The callback receives a context (cancelled on Close) and a StateSnapshot
 	// containing an immutable copy of the nozzle's state at the time of the change.
 	//
-	// BREAKING CHANGE in v2: Added context.Context as first parameter.
-	//
 	// Execution guarantees:
 	//  - Called at most once per Interval, only when state actually changes
 	//  - Called asynchronously in separate goroutines (may run concurrently)

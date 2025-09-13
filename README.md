@@ -188,8 +188,6 @@ As you can see, this package uses generics. This allows the Nozzle's methods to 
 
 You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occurred.
 
-**BREAKING CHANGE in v2:** The callback now receives a `context.Context` as the first parameter, which is cancelled when the nozzle closes.
-
 The callback receives a context and a `StateSnapshot` containing an immutable copy of the nozzle's state, ensuring thread-safe access to state information:
 
 ```go
