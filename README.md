@@ -220,6 +220,15 @@ n, err := nozzle.New(nozzle.Options[*example]{
 }
 ```
 
+### Callback Execution Guarantees
+
+- Callbacks are called **sequentially** (never concurrently)
+- Callbacks are called **at most once per interval**
+- Panics in callbacks are recovered and don't affect nozzle operation
+- Long-running callbacks may delay subsequent state calculations
+
+For more details on OnStateChange behavior and thread safety considerations, see the [documentation](documentation/on_state_change.md).
+
 ## Performance
 
 The performance is excellent. 0 bytes per operation, 0 allocations per operation. It works with concurrent goroutines without any race conditions.
@@ -263,13 +272,6 @@ for i := 0; i < 100; i++ {
 }
 wg.Wait()
 ```
-
-### Callback Execution Guarantees
-
-- Callbacks are called **sequentially** (never concurrently)
-- Callbacks are called **at most once per interval**
-- Panics in callbacks are recovered and don't affect nozzle operation
-- Long-running callbacks may delay subsequent state calculations
 
 ## Documentation
 
