@@ -43,7 +43,14 @@ func setupNozzleWithMetrics[T any](opts nozzle.Options[T]) (*nozzle.Nozzle[T], e
     )
     
     // Configure OnStateChange to update metrics
-    opts.OnStateChange = func(snapshot nozzle.StateSnapshot) {
+    opts.OnStateChange = func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+        // Check if nozzle is shutting down
+        select {
+        case <-ctx.Done():
+            return
+        default:
+        }
+        
         // Update gauge value
         latestFlowRate = float64(snapshot.FlowRate)
         
@@ -52,6 +59,7 @@ func setupNozzleWithMetrics[T any](opts nozzle.Options[T]) (*nozzle.Nozzle[T], e
             metric.WithAttributes(
                 attribute.String("state", string(snapshot.State)),
                 attribute.Int64("flow_rate", snapshot.FlowRate),
+                attribute.String("timestamp", snapshot.Timestamp.Format(time.RFC3339)),
             ))
     }
     
@@ -88,6 +96,8 @@ result, err := n.DoError(func() (any, error) {
 ## Key Points
 
 - The `StateSnapshot` passed to `OnStateChange` provides thread-safe access to all metrics
+- The `Timestamp` field indicates when the state change occurred
 - Observable gauges are ideal for point-in-time values like flow rate
-- The callback executes synchronously during state calculation, so avoid blocking operations
+- The callback executes asynchronously in a separate goroutine and doesn't block the ticker
 - Metrics are only recorded when state actually changes (at most once per interval)
+- The context is cancelled when the nozzle closes, allowing graceful callback shutdown

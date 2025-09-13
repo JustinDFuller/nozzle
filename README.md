@@ -188,15 +188,26 @@ As you can see, this package uses generics. This allows the Nozzle's methods to 
 
 You may want to collect metrics to help you observe when your nozzle is opening and closing. You can accomplish this with `nozzle.OnStateChange`. `OnStateChange` will be called _at most_ once per `Interval` but only if a change occurred.
 
-The callback receives a `StateSnapshot` containing an immutable copy of the nozzle's state, ensuring thread-safe access to state information:
+**BREAKING CHANGE in v2:** The callback now receives a `context.Context` as the first parameter, which is cancelled when the nozzle closes.
+
+The callback receives a context and a `StateSnapshot` containing an immutable copy of the nozzle's state, ensuring thread-safe access to state information:
 
 ```go
 n, err := nozzle.New(nozzle.Options[*example]{
     Interval:              time.Second,
     AllowedFailurePercent: 50,
-    OnStateChange: func(snapshot nozzle.StateSnapshot) {
+    OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+        // Check if nozzle is shutting down
+        select {
+        case <-ctx.Done():
+            return
+        default:
+        }
+        
         logger.Info(
             "Nozzle State Change",
+            "timestamp",
+            snapshot.Timestamp.Format(time.RFC3339),
             "state",
             snapshot.State,
             "flowRate",
@@ -210,6 +221,7 @@ n, err := nozzle.New(nozzle.Options[*example]{
          Example output:
          {
             "message": "Nozzle State Change",
+            "timestamp": "2024-01-15T10:30:45Z",
             "state": "opening",
             "flowRate": 50,
             "failureRate": 20,
@@ -222,10 +234,12 @@ n, err := nozzle.New(nozzle.Options[*example]{
 
 ### Callback Execution Guarantees
 
-- Callbacks are called **sequentially** (never concurrently)
-- Callbacks are called **at most once per interval**
+- Callbacks are executed **asynchronously** in separate goroutines (may run concurrently)
+- Callbacks are called **at most once per interval** when state changes
 - Panics in callbacks are recovered and don't affect nozzle operation
-- Long-running callbacks may delay subsequent state calculations
+- Callbacks don't block the ticker or state calculations
+- The context is cancelled when the nozzle closes, signaling callbacks to stop
+- The `Timestamp` field indicates when the state change occurred, not when the callback executes
 
 For more details on OnStateChange behavior and thread safety considerations, see the [documentation](documentation/on_state_change.md).
 

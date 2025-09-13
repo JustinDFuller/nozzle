@@ -1,6 +1,7 @@
 package nozzle_test
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -19,8 +20,13 @@ func TestNozzleSnapshotFieldValidation(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
 			validationCount.Add(1)
+
+			// Validate timestamp is set
+			if snapshot.Timestamp.IsZero() {
+				t.Error("Timestamp should not be zero")
+			}
 
 			// Validate all field ranges
 			if snapshot.FlowRate < 0 || snapshot.FlowRate > 100 {
@@ -108,7 +114,7 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(_ nozzle.StateSnapshot) {
+		OnStateChange: func(ctx context.Context, _ nozzle.StateSnapshot) {
 			// Simply count callbacks - no validation here
 			callbackCount.Add(1)
 		},
@@ -177,28 +183,28 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		callback func(nozzle.StateSnapshot)
+		callback func(context.Context, nozzle.StateSnapshot)
 	}{
 		{
 			name: "EmptyCallback",
-			callback: func(_ nozzle.StateSnapshot) {
+			callback: func(ctx context.Context, _ nozzle.StateSnapshot) {
 				// Do nothing
 			},
 		},
 		{
 			name: "SlowCallback",
-			callback: func(_ nozzle.StateSnapshot) {
+			callback: func(ctx context.Context, _ nozzle.StateSnapshot) {
 				time.Sleep(10 * time.Millisecond)
 			},
 		},
 		{
 			name: "AccessAllFields",
-			callback: func(snapshot nozzle.StateSnapshot) {
+			callback: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
 				// Access all fields to verify no deadlock occurs
 				total := snapshot.FlowRate + snapshot.FailureRate + snapshot.SuccessRate
 				sum := snapshot.Allowed + snapshot.Blocked
 				// Use variables to avoid compiler warnings
-				if total < 0 || sum < 0 || snapshot.State == "" {
+				if total < 0 || sum < 0 || snapshot.State == "" || snapshot.Timestamp.IsZero() {
 					// This should never happen but satisfies the compiler
 					return
 				}
@@ -265,7 +271,7 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
 			// Store snapshot for later verification
 			snapshotMutex.Lock()
 			snapshots = append(snapshots, snapshot)
@@ -274,6 +280,7 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 			// Store initial values to verify immutability
 			initialFlowRate := snapshot.FlowRate
 			initialState := snapshot.State
+			initialTimestamp := snapshot.Timestamp
 
 			// Give other goroutines a chance to interfere
 			time.Sleep(5 * time.Millisecond)
@@ -286,6 +293,10 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 			if snapshot.State != initialState {
 				stateModified.Store(true)
 				t.Error("Snapshot State was modified during callback execution")
+			}
+			if !snapshot.Timestamp.Equal(initialTimestamp) {
+				stateModified.Store(true)
+				t.Error("Snapshot Timestamp was modified during callback execution")
 			}
 		},
 	})
