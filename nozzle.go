@@ -5,6 +5,7 @@
 package nozzle
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -114,7 +115,7 @@ type Nozzle[T any] struct {
 //
 // Example usage:
 //
-//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+//	OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
 //	    if snapshot.FlowRate < 50 {
 //	        log.Printf("WARNING: Flow restricted to %d%%", snapshot.FlowRate)
 //	    }
@@ -122,6 +123,10 @@ type Nozzle[T any] struct {
 //	    metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
 //	}
 type StateSnapshot struct {
+	// Timestamp indicates when this state change occurred.
+	// This represents the actual time of the state change, not when the callback executes.
+	Timestamp time.Time
+
 	// FlowRate is the current percentage of operations allowed through (0-100).
 	// When FlowRate is 100, all operations are allowed. When 0, all operations are blocked.
 	// The rate adjusts dynamically based on success/failure ratios.
@@ -176,47 +181,47 @@ type Options[T any] struct {
 	AllowedFailurePercent int64
 
 	// OnStateChange is an optional callback function invoked whenever the nozzle's
-	// state changes. The callback receives a StateSnapshot containing an immutable copy
-	// of the nozzle's state at the time of the change.
+	// state changes. The callback receives a context (cancelled on Close) and a StateSnapshot
+	// containing an immutable copy of the nozzle's state at the time of the change.
 	//
 	// Execution guarantees:
 	//  - Called at most once per Interval, only when state actually changes
-	//  - Called sequentially (never concurrently) even with multiple nozzles
-	//  - Called while holding the nozzle's mutex (thread-safe but avoid blocking operations)
+	//  - Called asynchronously in separate goroutines (may run concurrently)
+	//  - Callbacks may execute out of order during rapid state changes
 	//  - Panics in callbacks are recovered and don't affect nozzle operation
+	//  - Context is cancelled when nozzle.Close() is called
 	//
 	// Performance considerations:
-	//  - The callback executes synchronously during state calculation
-	//  - Long-running callbacks may delay subsequent state calculations
+	//  - Callbacks execute asynchronously and don't block the ticker
 	//  - StateSnapshot is passed by value (zero allocations, minimal overhead)
-	//  - Avoid heavy operations; consider queueing work for async processing
+	//  - For long-running operations, check ctx.Done() to handle cancellation
 	//
 	// Example - Basic logging:
 	//
-	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
-	//	    log.Printf("State: %s, Flow: %d%%, Failures: %d%%",
-	//	        snapshot.State, snapshot.FlowRate, snapshot.FailureRate)
+	//	OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+	//	    log.Printf("State: %s, Flow: %d%%, Failures: %d%% at %s",
+	//	        snapshot.State, snapshot.FlowRate, snapshot.FailureRate,
+	//	        snapshot.Timestamp.Format(time.RFC3339))
 	//	}
 	//
-	// Example - Metrics integration:
+	// Example - Metrics integration with cancellation check:
 	//
-	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//	OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+	//	    if ctx.Err() != nil {
+	//	        return // Nozzle is closing
+	//	    }
 	//	    metrics.SetGauge("nozzle.flow_rate", float64(snapshot.FlowRate))
 	//	    metrics.SetGauge("nozzle.failure_rate", float64(snapshot.FailureRate))
-	//	    if snapshot.State == nozzle.Closing {
-	//	        metrics.Increment("nozzle.closing_events")
-	//	    }
 	//	}
 	//
 	// Example - Alerting on degradation:
 	//
-	//	OnStateChange: func(snapshot nozzle.StateSnapshot) {
+	//	OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
 	//	    if snapshot.FlowRate < 25 {
-	//	        // Queue alert asynchronously to avoid blocking
-	//	        go alerting.Send("Critical: Flow rate at %d%%", snapshot.FlowRate)
+	//	        alerting.Send("Critical: Flow rate at %d%%", snapshot.FlowRate)
 	//	    }
 	//	}
-	OnStateChange func(StateSnapshot)
+	OnStateChange func(context.Context, StateSnapshot)
 }
 
 // State describes the current direction the Nozzle is moving.
@@ -286,10 +291,13 @@ func New[T any](options Options[T]) (*Nozzle[T], error) {
 // tick periodically invokes the calculate method based on the Nozzle's interval.
 // It ensures the Nozzle processes its state updates at regular intervals.
 func (n *Nozzle[T]) tick() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	for {
 		select {
 		case <-n.timeTicker.C:
-			n.calculate()
+			n.calculate(ctx)
 		case <-n.done:
 			return
 		}
@@ -471,7 +479,7 @@ func (n *Nozzle[T]) DoError(callback func() (T, error)) (T, error) {
 
 // calculate updates the Nozzle's state based on the elapsed time and failure rate.
 // It determines whether to open or close the Nozzle and triggers the ticker if necessary.
-func (n *Nozzle[T]) calculate() {
+func (n *Nozzle[T]) calculate(ctx context.Context) {
 	n.mut.Lock()
 	defer n.mut.Unlock()
 
@@ -502,8 +510,8 @@ func (n *Nozzle[T]) calculate() {
 
 	if changed && n.Options.OnStateChange != nil {
 		// Create an immutable snapshot of the current state.
-		// This is safe to pass to the callback without unlocking the mutex.
 		snapshot := StateSnapshot{
+			Timestamp:   time.Now(),
 			FlowRate:    n.flowRate,
 			State:       n.state,
 			FailureRate: n.failureRate(),
@@ -512,9 +520,16 @@ func (n *Nozzle[T]) calculate() {
 			Blocked:     n.blocked,
 		}
 
-		// Call the callback with the snapshot.
-		// The mutex remains locked, preventing race conditions.
-		n.Options.OnStateChange(snapshot)
+		// Spawn goroutine to call callback asynchronously.
+		// This prevents slow callbacks from blocking the ticker.
+		go func() {
+			defer func() {
+				// Recover from panics in callbacks to prevent crashes
+				_ = recover()
+			}()
+
+			n.Options.OnStateChange(ctx, snapshot)
+		}()
 	}
 
 	n.reset()

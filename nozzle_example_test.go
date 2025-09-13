@@ -1,7 +1,9 @@
 package nozzle_test
 
 import (
+	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/justindfuller/nozzle"
@@ -263,14 +265,21 @@ func ExampleNozzle_Wait() {
 }
 
 func ExampleOptions() {
+	// Use a synchronous approach for deterministic example output
+	var (
+		outputs []string
+		mutex   sync.Mutex
+	)
+
 	noz, err := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(snapshot nozzle.StateSnapshot) {
-			fmt.Printf("New State: %s\n", snapshot.State)
-			fmt.Printf("Failure Rate: %d\n", snapshot.FailureRate)
-			fmt.Printf("Success Rate: %d\n", snapshot.SuccessRate)
-			fmt.Printf("Flow Rate: %d\n", snapshot.FlowRate)
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
+			output := fmt.Sprintf("New State: %s\nFailure Rate: %d\nSuccess Rate: %d\nFlow Rate: %d",
+				snapshot.State, snapshot.FailureRate, snapshot.SuccessRate, snapshot.FlowRate)
+			mutex.Lock()
+			outputs = append(outputs, output)
+			mutex.Unlock()
 		},
 	})
 	if err != nil {
@@ -300,6 +309,18 @@ func ExampleOptions() {
 	}
 
 	noz.Wait()
+
+	// Wait a bit for callbacks to complete
+	time.Sleep(100 * time.Millisecond)
+
+	// Print collected outputs
+	mutex.Lock()
+
+	for _, output := range outputs {
+		fmt.Println(output)
+	}
+
+	mutex.Unlock()
 
 	// Output:
 	// New State: closing
