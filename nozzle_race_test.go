@@ -20,7 +20,7 @@ func TestNozzleSnapshotFieldValidation(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
 			validationCount.Add(1)
 
 			// Validate timestamp is set
@@ -114,7 +114,7 @@ func TestNozzleConcurrentStateChange(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(ctx context.Context, _ nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, _ nozzle.StateSnapshot) {
 			// Simply count callbacks - no validation here
 			callbackCount.Add(1)
 		},
@@ -187,24 +187,24 @@ func TestNozzleCallbackNoDeadlock(t *testing.T) {
 	}{
 		{
 			name: "EmptyCallback",
-			callback: func(ctx context.Context, _ nozzle.StateSnapshot) {
+			callback: func(_ context.Context, _ nozzle.StateSnapshot) {
 				// Do nothing
 			},
 		},
 		{
 			name: "SlowCallback",
-			callback: func(ctx context.Context, _ nozzle.StateSnapshot) {
+			callback: func(_ context.Context, _ nozzle.StateSnapshot) {
 				time.Sleep(10 * time.Millisecond)
 			},
 		},
 		{
 			name: "AccessAllFields",
-			callback: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+			callback: func(_ context.Context, snapshot nozzle.StateSnapshot) {
 				// Access all fields to verify no deadlock occurs
 				total := snapshot.FlowRate + snapshot.FailureRate + snapshot.SuccessRate
 				sum := snapshot.Allowed + snapshot.Blocked
 				// Use variables to avoid compiler warnings
-				if total < 0 || sum < 0 || snapshot.State == "" || snapshot.Timestamp.IsZero() {
+				if total < 0 || sum < 0 || snapshot.State == "" {
 					// This should never happen but satisfies the compiler
 					return
 				}
@@ -271,7 +271,7 @@ func TestNozzleRaceConditionRegression(t *testing.T) {
 	noz, err := nozzle.New(nozzle.Options[string]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
 			// Store snapshot for later verification
 			snapshotMutex.Lock()
 			snapshots = append(snapshots, snapshot)

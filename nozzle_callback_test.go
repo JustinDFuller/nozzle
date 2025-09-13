@@ -25,7 +25,7 @@ func TestSlowCallbackDoesNotBlockTicker(t *testing.T) {
 	n, err := nozzle.New(nozzle.Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, _ nozzle.StateSnapshot) {
 			callbackStarted.Store(true)
 			// Simulate a slow callback that takes longer than the interval
 			time.Sleep(100 * time.Millisecond)
@@ -35,7 +35,11 @@ func TestSlowCallbackDoesNotBlockTicker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
-	defer n.Close()
+	defer func() {
+		if err := n.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Track when ticks happen by monitoring state changes
 	go func() {
@@ -94,10 +98,10 @@ func TestCallbackPanicRecovery(t *testing.T) {
 		normalCallbackCount  atomic.Int32
 	)
 
-	n, err := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, _ nozzle.StateSnapshot) {
 			if !panicCallbackInvoked.Load() {
 				panicCallbackInvoked.Store(true)
 				panic("intentional test panic")
@@ -108,11 +112,15 @@ func TestCallbackPanicRecovery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
-	defer n.Close()
+	defer func() {
+		if err := noz.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Trigger state changes
 	for i := range 50 {
-		n.DoBool(func() (any, bool) {
+		noz.DoBool(func() (any, bool) {
 			return nil, i%3 == 0
 		})
 
@@ -135,7 +143,7 @@ func TestCallbackPanicRecovery(t *testing.T) {
 	}
 
 	// Verify nozzle is still operational
-	_, ok := n.DoBool(func() (any, bool) {
+	_, ok := noz.DoBool(func() (any, bool) {
 		return nil, true
 	})
 	if !ok {
@@ -155,10 +163,10 @@ func TestCallbackContextCancellation(t *testing.T) {
 		contextWasCancelled atomic.Bool
 	)
 
-	n, err := nozzle.New(nozzle.Options[any]{
+	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              10 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(ctx context.Context, _ nozzle.StateSnapshot) {
 			callbackStarted.Store(true)
 
 			// Wait a bit then check if context is cancelled
@@ -178,7 +186,7 @@ func TestCallbackContextCancellation(t *testing.T) {
 
 	// Trigger a state change
 	for range 10 {
-		n.DoBool(func() (any, bool) {
+		noz.DoBool(func() (any, bool) {
 			return nil, false
 		})
 	}
@@ -194,7 +202,9 @@ func TestCallbackContextCancellation(t *testing.T) {
 	}
 
 	// Close the nozzle while callback is running
-	n.Close()
+	if err := noz.Close(); err != nil {
+		t.Errorf("Failed to close nozzle: %v", err)
+	}
 
 	// Wait a bit for callback to detect cancellation
 	time.Sleep(100 * time.Millisecond)
@@ -210,23 +220,27 @@ func TestCallbackTimestampAccuracy(t *testing.T) {
 	t.Parallel()
 
 	var (
-		mu         sync.Mutex
+		mutex      sync.Mutex
 		timestamps []time.Time
 	)
 
 	n, err := nozzle.New(nozzle.Options[any]{
 		Interval:              50 * time.Millisecond,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
-			mu.Lock()
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
+			mutex.Lock()
 			timestamps = append(timestamps, snapshot.Timestamp)
-			mu.Unlock()
+			mutex.Unlock()
 		},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create nozzle: %v", err)
 	}
-	defer n.Close()
+	defer func() {
+		if err := n.Close(); err != nil {
+			t.Errorf("Failed to close nozzle: %v", err)
+		}
+	}()
 
 	// Trigger state changes
 	for i := range 30 {
@@ -239,8 +253,8 @@ func TestCallbackTimestampAccuracy(t *testing.T) {
 	// Wait for callbacks to complete
 	time.Sleep(200 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
+	mutex.Lock()
+	defer mutex.Unlock()
 
 	if len(timestamps) < 2 {
 		t.Fatalf("Not enough timestamps collected: %d", len(timestamps))

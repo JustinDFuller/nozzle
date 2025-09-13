@@ -268,18 +268,18 @@ func ExampleOptions() {
 	// Use a synchronous approach for deterministic example output
 	var (
 		outputs []string
-		mu      sync.Mutex
+		mutex   sync.Mutex
 	)
 
 	noz, err := nozzle.New(nozzle.Options[[]string]{
 		Interval:              time.Second,
 		AllowedFailurePercent: 50,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
 			output := fmt.Sprintf("New State: %s\nFailure Rate: %d\nSuccess Rate: %d\nFlow Rate: %d",
 				snapshot.State, snapshot.FailureRate, snapshot.SuccessRate, snapshot.FlowRate)
-			mu.Lock()
+			mutex.Lock()
 			outputs = append(outputs, output)
-			mu.Unlock()
+			mutex.Unlock()
 		},
 	})
 	if err != nil {
@@ -314,13 +314,13 @@ func ExampleOptions() {
 	time.Sleep(100 * time.Millisecond)
 
 	// Print collected outputs
-	mu.Lock()
+	mutex.Lock()
 
 	for _, output := range outputs {
 		fmt.Println(output)
 	}
 
-	mu.Unlock()
+	mutex.Unlock()
 
 	// Output:
 	// New State: closing

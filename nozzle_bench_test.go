@@ -183,7 +183,7 @@ func BenchmarkNozzle_StateSnapshot(b *testing.B) {
 	noz, err := nozzle.New(nozzle.Options[any]{
 		Interval:              time.Millisecond * 10,
 		AllowedFailurePercent: 30,
-		OnStateChange: func(ctx context.Context, snapshot nozzle.StateSnapshot) {
+		OnStateChange: func(_ context.Context, snapshot nozzle.StateSnapshot) {
 			// Simulate accessing snapshot fields as would happen in real usage
 			// Access fields to ensure they're included in benchmark measurements
 			if snapshot.Timestamp.IsZero() || snapshot.FlowRate < 0 || snapshot.State == "" ||
